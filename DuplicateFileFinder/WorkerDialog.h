@@ -44,8 +44,17 @@ public:
 		if(m_prgbProgress.GetSafeHwnd()) {
 			if(m_eType == eMARQUEE) {
 				m_prgbProgress.ModifyStyle(0, PBS_MARQUEE);
+				if(GetSafeHwnd()) {
+					m_nTimerID = SetTimer(reinterpret_cast<UINT_PTR>(GetSafeHwnd()), 60, nullptr);
+				}
 			}
 			else {
+				if(m_nTimerID != 0) {
+					if(GetSafeHwnd()) {
+						KillTimer(m_nTimerID);
+					}
+					m_nTimerID = 0;
+				}
 				m_prgbProgress.ModifyStyle(PBS_MARQUEE, 0);
 			}
 		}
@@ -76,17 +85,36 @@ public:
 			m_prgbProgress.SetPos(m_nValue);
 		}
 	}
+
+	int GetProgressValue() {
+		if(m_prgbProgress.GetSafeHwnd()) {
+			m_nValue = m_prgbProgress.GetPos();
+		}
+
+		return m_nValue;
+	}
+
+	void GetProgressRange(int& nLow, int& nHi) {
+		if(m_prgbProgress.GetSafeHwnd()) {
+			m_prgbProgress.GetRange(m_nLow, m_nHi);
+		}
+		nLow = m_nLow;
+		nHi	= m_nHi;
+	}
 	
 protected:
 	virtual BOOL OnInitDialog();
 	afx_msg void OnCancel();
 	afx_msg void OnDestroy();
 	virtual void DoDataExchange(CDataExchange* pDX);
+	afx_msg void OnTimer(UINT_PTR nIDEvent);
 private:
+	UINT_PTR m_nTimerID;
 	CString	m_strName;
 	CString m_strTitle;
 	CString m_strMessage;
 	ProgressType m_eType;
+
 	int m_nLow;
 	int m_nHi;
 	int m_nValue;

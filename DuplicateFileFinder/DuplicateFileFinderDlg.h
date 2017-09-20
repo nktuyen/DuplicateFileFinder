@@ -45,7 +45,7 @@ protected:
 	afx_msg void OnDropFiles(HDROP hDropInfo);
 	DECLARE_MESSAGE_MAP()
 public:
-	CWorkerDialog m_WorkerDlg;
+	CWorkerDialog* m_pWorkerDlg;
 	CScanThread* m_pScanThread;
 	CListBox m_lstFiles;
 	CMapStringToPtr m_arrPaths;

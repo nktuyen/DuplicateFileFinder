@@ -21,12 +21,11 @@
 
 CDuplicateFileFinderDlg::CDuplicateFileFinderDlg(CWnd* pParent /*=NULL*/)
 	: CDialogEx(CDuplicateFileFinderDlg::IDD, pParent)
-	, m_WorkerDlg(this)
 {
 	m_hIcon = AfxGetApp()->LoadIcon(IDR_MAINFRAME);
-	//m_pWorkerDlg->Create(CWorkerDialog::IDD, this);
-	m_pScanThread = new CScanThread(this, &m_WorkerDlg);
-	m_WorkerDlg.SetWorkerThread(m_pScanThread);
+	m_pWorkerDlg = new CWorkerDialog(this);
+	m_pScanThread = new CScanThread(this, m_pWorkerDlg);
+	m_pWorkerDlg->SetWorkerThread(m_pScanThread);
 }
 
 void CDuplicateFileFinderDlg::DoDataExchange(CDataExchange* pDX)
@@ -90,6 +89,7 @@ BOOL CDuplicateFileFinderDlg::OnInitDialog()
 void CDuplicateFileFinderDlg::OnDestroy()
 {
 	delete m_pScanThread;
+	delete m_pWorkerDlg;
 	CDialogEx::OnDestroy();
 }
 
@@ -518,8 +518,12 @@ void CDuplicateFileFinderDlg::OnBnClickedBtnScan()
 		CloseHandle(m_pScanThread->m_hThread);
 		m_pScanThread->m_hThread = nullptr;
 	}
+	if(m_pWorkerDlg->GetSafeHwnd()) 
+		m_pWorkerDlg->DestroyWindow();
+
+	m_pWorkerDlg->Create(CWorkerDialog::IDD, this);
+	m_pWorkerDlg->ShowWindow(SW_SHOW);
 	m_pScanThread->CreateThread();
-	m_WorkerDlg.DoModal();
 }
 
 

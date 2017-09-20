@@ -16,6 +16,7 @@ private:
 private:
 	CWorkerDialog* m_pProgressDlg;
 	CWnd*	m_pOwnerWnd;
+	static CScanThread* m_sInstance;
 	CStringArray m_arrPaths;
 	BOOL m_bRunning;
 	CRITICAL_SECTION  m_RunSection;

@@ -6,8 +6,11 @@
 #include "ScanThread.h"
 #include "WorkerDialog.h"
 
+CScanThread* CScanThread::m_sInstance = nullptr;
+
 CScanThread::CScanThread(CWnd* pOwner /* = nullptr */, CWorkerDialog* pProgressDlg /* = nullptr */)
 {
+	CScanThread::m_sInstance = this;
 	m_pOwnerWnd = pOwner;
 	m_pProgressDlg = pProgressDlg;
 	m_arrPaths.RemoveAll();
@@ -33,9 +36,12 @@ int CScanThread::ExitInstance()
 	LeaveCriticalSection(&m_RunSection);
 	CloseHandle(m_hThread);
 	m_hThread = nullptr;
+
 	if(m_pProgressDlg) {
-		m_pProgressDlg->SendMessage(WM_CLOSE, 0, 0);
+		if(m_pProgressDlg->GetSafeHwnd())
+			m_pProgressDlg->SendMessage(WM_CLOSE, 0, 0);
 	}
+	
 	DeleteCriticalSection(&m_RunSection);
 	m_arrPaths.RemoveAll();
 	return CWinThread::ExitInstance();
@@ -58,14 +64,11 @@ BOOL CScanThread::Initialize(const CStringArray& strPath)
 		return FALSE;
 
 	if(m_pProgressDlg) {
-		m_pProgressDlg->SetJobName(_T(""));
 		m_pProgressDlg->SetProgressRange(0, 100);
-		m_pProgressDlg->SetProgressType(CWorkerDialog::eFILL);
+		m_pProgressDlg->SetProgressType(CWorkerDialog::eMARQUEE);
 		m_pProgressDlg->SetProgressValue(0);
 	}
 
-	MSG msg={0};
-	PeekMessage(&msg, NULL, 0, 0, PM_NOREMOVE);
 	m_bRunning = TRUE;
 	
 	return TRUE;
@@ -73,26 +76,21 @@ BOOL CScanThread::Initialize(const CStringArray& strPath)
 
 int CScanThread::Run()
 {
-	int i = 0;
-
-	m_pProgressDlg->SetMessageTitle(_T("Current Value:"));
+	m_pProgressDlg->SetMessageTitle(_T("Current File:"));
 	CString	strMessage;
-
-	while (i < 100)
+	CString	strCurrentPath;
+	for(INT_PTR i=0;i<m_arrPaths.GetCount();i++)
 	{
-		MSG msg={0};
-		PeekMessage(&msg, NULL, 0, 0, PM_NOREMOVE);
+		strCurrentPath = m_arrPaths.GetAt(i);
+		strMessage.Format(_T("Scanning [%s]"), strCurrentPath);
+		m_pProgressDlg->SetJobName(strMessage);
 
 		EnterCriticalSection(&m_RunSection);
-
 		if(!m_bRunning)
 			break;
 		LeaveCriticalSection(&m_RunSection);
-		
-		i++;
-		strMessage.Format(_T("%d"), i);
-		m_pProgressDlg->SetMessageContent(strMessage);
-		m_pProgressDlg->SetProgressValue(i);
+
+		m_pProgressDlg->SetMessageContent(_T("XXX"));
 		Sleep(100);
 	}
 	LeaveCriticalSection(&m_RunSection);

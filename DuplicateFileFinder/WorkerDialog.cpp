@@ -17,6 +17,7 @@ CWorkerDialog::CWorkerDialog(CWnd* pParent /* = NULL */)
 	m_nLow = 0;
 	m_nHi = 100;
 	m_nValue = 0;
+	m_nTimerID = 0;
 	m_eType = eFILL;
 }
 
@@ -34,6 +35,7 @@ void CWorkerDialog::DoDataExchange(CDataExchange* pDX)
 
 BEGIN_MESSAGE_MAP(CWorkerDialog, CDialog)
 	ON_WM_DESTROY()
+	ON_WM_TIMER()
 END_MESSAGE_MAP()
 
 
@@ -76,21 +78,24 @@ void CWorkerDialog::OnCancel()
 	}
 
 	m_pWorkerThread->SuspendThread();
+	if(m_nTimerID != 0) {
+		KillTimer(m_nTimerID);
+		m_nTimerID = 0;
+	}
+
 	int nRes = AfxMessageBox(_T("Are you sure to abort current operation?"), MB_YESNO | MB_ICONQUESTION);
 	if(nRes != IDYES) {
+		
+		if(m_eType == eMARQUEE) {
+			m_nTimerID = SetTimer(reinterpret_cast<UINT_PTR>(GetSafeHwnd()), 60, nullptr);
+		}
+
 		m_pWorkerThread->ResumeThread();
 		return;
 	}
 
 	m_pWorkerThread->ResumeThread();
-	if(GetExitCodeThread(m_pWorkerThread->m_hThread, &dwCode)) {
-		while (STILL_ACTIVE == dwCode)
-		{
-			WaitForSingleObject(m_pWorkerThread->m_hThread, 1000U);
-			m_pWorkerThread->Finalize();
-			if(!GetExitCodeThread(m_pWorkerThread->m_hThread, &dwCode))
-				dwCode = 0;
-		}
+	if(nullptr != m_pWorkerThread->m_hThread) {
 		CloseHandle(m_pWorkerThread->m_hThread);
 		m_pWorkerThread->m_hThread = nullptr;
 	}
@@ -101,5 +106,28 @@ void CWorkerDialog::OnCancel()
 void CWorkerDialog::OnDestroy()
 {
 	m_fntBold.DeleteObject();
+	if(m_nTimerID != 0) {
+		KillTimer(m_nTimerID);
+		m_nTimerID = 0;
+	}
 	CDialog::OnDestroy();
+}
+
+void CWorkerDialog::OnTimer(UINT_PTR nIDEvent)
+{
+	if(GetSafeHwnd()) {
+		if(nIDEvent == reinterpret_cast<UINT_PTR>(GetSafeHwnd())) {
+			int nLow, nHi, nVal;
+
+			m_prgbProgress.GetRange(nLow, nHi);
+			nVal = m_prgbProgress.GetPos();
+
+			if(nVal >= nHi)
+				nVal = nLow;
+			else
+				nVal+=10;
+
+			m_prgbProgress.SetPos(nVal);
+		}
+	}
 }
