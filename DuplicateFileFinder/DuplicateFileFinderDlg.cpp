@@ -13,10 +13,10 @@
 #define new DEBUG_NEW
 #endif
 
-#define MIN_WIDTH			800
-#define MIN_HEIGHT			450
-#define LEFT_PANEL_WIDTH	250
-#define HORIZONTAL_PADDING	6
+#define MIN_WIDTH			1000
+#define MIN_HEIGHT			700
+#define LEFT_PANEL_WIDTH	460
+#define HORIZONTAL_PADDING	4
 #define VERTICAL_PADDING	6
 
 CDuplicateFileFinderDlg::CDuplicateFileFinderDlg(CWnd* pParent /*=NULL*/)
@@ -50,6 +50,23 @@ void CDuplicateFileFinderDlg::DoDataExchange(CDataExchange* pDX)
 	DDX_Control(pDX, IDC_STT_CHECKBOX_MESSAGE, m_sttCheckboxMessage);
 	DDX_Control(pDX, IDC_LVW_FOLDERS, m_lvwFolders);
 	DDX_Control(pDX, IDC_BTN_BROWSE, m_btnBrowse);
+	DDX_Control(pDX, IDC_STT_EXCLUDE, m_sttExclude);
+	DDX_Control(pDX, IDC_BTN_REMOVE, m_btnRemove);
+	DDX_Control(pDX, IDC_BTN_CLEAR, m_btnClear);
+	DDX_Control(pDX, IDC_CHK_EXCLUDE_PATTERN, m_chkExcludePattern);
+	DDX_Control(pDX, IDC_EDT_PATTERN, m_edtPattern);
+	DDX_Control(pDX, IDC_CHK_EXCLUDE_SIZE, m_chkExcludeSize);
+	DDX_Control(pDX, IDC_EDT_EXCLUDE_SIZE, m_edtExcludeSize);
+	DDX_Control(pDX, IDC_CB_SIZE_UNIT, m_cbSizeUnit);
+	DDX_Control(pDX, IDC_CB_SIZE_CRITERIA, m_cboSizeCriteria);
+	DDX_Control(pDX, IDC_STT_EXCLUDE_ATTRIBUTES, m_sttExcludeAttr);
+	DDX_Control(pDX, IDC_CHK_EXCLUDE_ATTR_READONLY, m_chkExcludeROnly);
+	DDX_Control(pDX, IDC_CHK_EXCLUDE_ATTR_HIDDEN, m_chkExcludeHidden);
+	DDX_Control(pDX, IDC_CHK_EXCLUDE_ATTR_SYSTEM, m_chkExcludeSystem);
+	DDX_Control(pDX, IDC_STT_PATTER_TIPS, m_sttPatternsTips);
+	DDX_Control(pDX, IDC_CHK_EXCLUDE_ATTR_TEMP, m_chkExcludeTemp);
+	DDX_Control(pDX, IDC_CHK_EXCLUDE_ATTR_ARCHIVE, m_chkExcludeArchive);
+	DDX_Control(pDX, IDC_CHK_SCAN_RECURSIVE, m_chkScanRecursive);
 }
 
 BEGIN_MESSAGE_MAP(CDuplicateFileFinderDlg, CDialogEx)
@@ -69,6 +86,11 @@ BEGIN_MESSAGE_MAP(CDuplicateFileFinderDlg, CDialogEx)
 	ON_BN_CLICKED(IDC_CHK_WTIME, &CDuplicateFileFinderDlg::OnBnClickedChkWtime)
 	ON_BN_CLICKED(IDC_BTN_SCAN, &CDuplicateFileFinderDlg::OnBnClickedBtnScan)
 	ON_BN_CLICKED(IDC_BTN_BROWSE, &CDuplicateFileFinderDlg::OnBnClickedBtnBrowse)
+	ON_BN_CLICKED(IDC_BTN_CLEAR, &CDuplicateFileFinderDlg::OnBnClickedBtnClear)
+	ON_BN_CLICKED(IDC_BTN_REMOVE, &CDuplicateFileFinderDlg::OnBnClickedBtnRemove)
+	ON_NOTIFY(LVN_ITEMCHANGED, IDC_LVW_FOLDERS, &CDuplicateFileFinderDlg::OnLvnItemchangedLvwFolders)
+	ON_BN_CLICKED(IDC_CHK_EXCLUDE_PATTERN, &CDuplicateFileFinderDlg::OnBnClickedChkExcludePattern)
+	ON_BN_CLICKED(IDC_CHK_EXCLUDE_SIZE, &CDuplicateFileFinderDlg::OnBnClickedChkExcludeSize)
 END_MESSAGE_MAP()
 
 
@@ -139,20 +161,151 @@ void CDuplicateFileFinderDlg::OnSize(UINT nType, int cx, int cy)
 		CRect	rcLabel;
 		CRect	rcFolderTree;
 		CRect	rcListBox;
+		CRect	rcExclude;
+		CRect	rcBrowse;
+		CRect	rcScan;
+		CRect	rcPattern;
+		CRect	rcExcludeSize;
+		CRect	rcExcludeAttr;
 
 		GetClientRect(rcDialog);
 		rcDialog.NormalizeRect();
 		//rcDialog.DeflateRect(HORIZONTAL_PADDING, VERTICAL_PADDING, HORIZONTAL_PADDING, VERTICAL_PADDING);
 
 		if(m_sttDuplicateCriteria.GetSafeHwnd()) {
+			if(m_btnScan.GetSafeHwnd()) {
+				m_btnScan.GetWindowRect(rcScan);
+			}
 			m_sttDuplicateCriteria.GetWindowRect(rcGroupBox);
 			rcTemp.bottom = (rcDialog.bottom - VERTICAL_PADDING);
 			rcTemp.left = (rcDialog.left + HORIZONTAL_PADDING);
-			rcTemp.right = (rcTemp.left + LEFT_PANEL_WIDTH);
+			rcTemp.right = (LEFT_PANEL_WIDTH - rcScan.Width() - HORIZONTAL_PADDING);
 			rcTemp.top = (rcTemp.bottom - rcGroupBox.Height());
 			m_sttDuplicateCriteria.MoveWindow(rcTemp);
 
 			rcGroupBox = rcTemp;
+			rcExclude = rcGroupBox;
+		}
+
+		rcExclude.OffsetRect(0, -rcGroupBox.Height() - VERTICAL_PADDING);
+		if(m_sttExclude.GetSafeHwnd()) {
+			m_sttExclude.GetWindowRect(rcTemp);
+			rcExclude.top = (rcExclude.bottom - rcTemp.Height());
+			m_sttExclude.MoveWindow(rcExclude);
+		}
+
+		rcPattern = rcExclude;
+		if(m_chkExcludePattern.GetSafeHwnd()) {
+			m_chkExcludePattern.GetWindowRect(rcTemp);
+			rcPattern.OffsetRect(HORIZONTAL_PADDING*3, VERTICAL_PADDING*3);
+			rcPattern.right = (rcPattern.left + rcTemp.Width());
+			rcPattern.bottom = (rcPattern.top + rcTemp.Height());
+			m_chkExcludePattern.MoveWindow(rcPattern);
+			rcPattern.OffsetRect(rcPattern.Width() + HORIZONTAL_PADDING, 0);
+		}
+
+		if(m_edtPattern.GetSafeHwnd()) {
+			m_edtPattern.GetWindowRect(rcTemp);
+			rcPattern.right = (rcPattern.left + rcTemp.Width());
+			rcPattern.bottom = (rcPattern.top + rcTemp.Height());
+			m_edtPattern.MoveWindow(rcPattern);
+			rcPattern.OffsetRect(rcPattern.Width() + HORIZONTAL_PADDING, 0);
+		}
+		
+		if(m_sttPatternsTips.GetSafeHwnd()) {
+			m_sttPatternsTips.GetWindowRect(rcTemp);
+			rcPattern.right = (rcPattern.left + rcTemp.Width());
+			rcPattern.bottom = (rcPattern.top + rcTemp.Height());
+			m_sttPatternsTips.MoveWindow(rcPattern);
+		}
+
+		rcExcludeSize = rcExclude;
+		if(m_chkExcludeSize.GetSafeHwnd()) {
+			m_chkExcludeSize.GetWindowRect(rcTemp);
+			rcExcludeSize.OffsetRect(HORIZONTAL_PADDING*3, VERTICAL_PADDING*3);
+			rcExcludeSize.right = (rcExcludeSize.left + rcTemp.Width());
+			rcExcludeSize.top = (rcPattern.bottom + VERTICAL_PADDING);
+			rcExcludeSize.bottom = (rcExcludeSize.top + rcTemp.Height());
+			m_chkExcludeSize.MoveWindow(rcExcludeSize);
+
+			rcExcludeSize.OffsetRect(rcExcludeSize.Width() + HORIZONTAL_PADDING, 0);
+		}
+
+		if(m_cboSizeCriteria.GetSafeHwnd()) {
+			m_cboSizeCriteria.GetWindowRect(rcTemp);
+			rcExcludeSize.bottom = (rcExcludeSize.top + rcTemp.Height());
+			rcExcludeSize.right = (rcExcludeSize.left + rcTemp.Width());
+			m_cboSizeCriteria.MoveWindow(rcExcludeSize);
+
+			rcExcludeSize.OffsetRect(rcExcludeSize.Width() + HORIZONTAL_PADDING, 0);
+		}
+
+		if(m_edtExcludeSize.GetSafeHwnd()) {
+			m_edtExcludeSize.GetWindowRect(rcTemp);
+			rcExcludeSize.right = (rcExcludeSize.left + rcTemp.Width());
+			rcExcludeSize.bottom = (rcExcludeSize.top + rcTemp.Height());
+			m_edtExcludeSize.MoveWindow(rcExcludeSize);
+			rcExcludeSize.OffsetRect(rcExcludeSize.Width() + HORIZONTAL_PADDING, 0);
+		}
+
+		if(m_cbSizeUnit.GetSafeHwnd()) {
+			m_cbSizeUnit.GetWindowRect(rcTemp);
+			rcExcludeSize.right = (rcExcludeSize.left + rcTemp.Width());
+			rcExcludeSize.bottom = (rcExcludeSize.top + rcTemp.Height());
+			m_cbSizeUnit.MoveWindow(rcExcludeSize);
+		}
+
+		rcExcludeAttr = rcExclude;
+		if(m_sttExcludeAttr.GetSafeHwnd()) {
+			m_sttExcludeAttr.GetWindowRect(rcTemp);
+			rcExcludeAttr.OffsetRect(HORIZONTAL_PADDING*3, VERTICAL_PADDING*3);
+			rcExcludeAttr.top = (rcExcludeSize.bottom + VERTICAL_PADDING);
+			rcExcludeAttr.right = (LEFT_PANEL_WIDTH - rcScan.Width() - HORIZONTAL_PADDING *4);
+			rcExcludeAttr.bottom = (rcExcludeAttr.top + rcTemp.Height());
+			m_sttExcludeAttr.MoveWindow(rcExcludeAttr);
+
+			rcExcludeAttr.OffsetRect(HORIZONTAL_PADDING*3, VERTICAL_PADDING*3);
+		}
+
+		if(m_chkExcludeROnly.GetSafeHwnd()) {
+			m_chkExcludeROnly.GetWindowRect(rcTemp);
+			rcExcludeAttr.right = (rcExcludeAttr.left + rcTemp.Width());
+			rcExcludeAttr.bottom = (rcExcludeAttr.top + rcTemp.Height());
+			m_chkExcludeROnly.MoveWindow(rcExcludeAttr);
+
+			rcExcludeAttr.OffsetRect(rcExcludeAttr.Width() + HORIZONTAL_PADDING, 0);
+		}
+
+		if(m_chkExcludeHidden.GetSafeHwnd()) {
+			m_chkExcludeHidden.GetWindowRect(rcTemp);
+			rcExcludeAttr.right = (rcExcludeAttr.left + rcTemp.Width());
+			rcExcludeAttr.bottom = (rcExcludeAttr.top + rcTemp.Height());
+			m_chkExcludeHidden.MoveWindow(rcExcludeAttr);
+			rcExcludeAttr.OffsetRect(rcExcludeAttr.Width() + HORIZONTAL_PADDING, 0);
+		}
+
+		if(m_chkExcludeSystem.GetSafeHwnd()) {
+			m_chkExcludeSystem.GetWindowRect(rcTemp);
+			rcExcludeAttr.right = (rcExcludeAttr.left + rcTemp.Width());
+			rcExcludeAttr.bottom = (rcExcludeAttr.top + rcTemp.Height());
+			m_chkExcludeSystem.MoveWindow(rcExcludeAttr);
+			rcExcludeAttr.OffsetRect(rcExcludeAttr.Width() + HORIZONTAL_PADDING, 0);
+		}
+
+		if(m_chkExcludeTemp.GetSafeHwnd()) {
+			m_chkExcludeTemp.GetWindowRect(rcTemp);
+			rcExcludeAttr.right = (rcExcludeAttr.left + rcTemp.Width());
+			rcExcludeAttr.bottom = (rcExcludeAttr.top + rcTemp.Height());
+			m_chkExcludeTemp.MoveWindow(rcExcludeAttr);
+			rcExcludeAttr.OffsetRect(rcExcludeAttr.Width() + HORIZONTAL_PADDING, 0);
+		}
+
+		if(m_chkExcludeArchive.GetSafeHwnd()) {
+			m_chkExcludeArchive.GetWindowRect(rcTemp);
+			rcExcludeAttr.right = (rcExcludeAttr.left + rcTemp.Width());
+			rcExcludeAttr.bottom = (rcExcludeAttr.top + rcTemp.Height());
+			m_chkExcludeArchive.MoveWindow(rcExcludeAttr);
+			//rcExcludeAttr.OffsetRect(rcExcludeAttr.Width() + HORIZONTAL_PADDING, 0);
 		}
 
 		if(m_chkName.GetSafeHwnd()) {
@@ -219,9 +372,18 @@ void CDuplicateFileFinderDlg::OnSize(UINT nType, int cx, int cy)
 			rcButton.OffsetRect(rcGroupBox.Width() + HORIZONTAL_PADDING, 0);
 			rcButton.top = rcButton.top + (rcGroupBox.Height() - rcTemp.Height())/2;
 			rcButton.bottom = (rcButton.top + rcTemp.Height());
-			rcButton.right = (rcButton.left + rcTemp.Width());
+			rcButton.right = LEFT_PANEL_WIDTH;
+			rcButton.left = (rcButton.right - rcTemp.Width());
+			rcScan = rcButton;
+			m_btnScan.MoveWindow(rcScan);
+			rcScan.OffsetRect(0, rcScan.Height()+VERTICAL_PADDING);
+		}
 
-			m_btnScan.MoveWindow(rcButton);
+		if(m_chkScanRecursive.GetSafeHwnd()) {
+			m_chkScanRecursive.GetWindowRect(rcTemp);
+			rcScan.right = (rcScan.left + rcTemp.Width());
+			rcScan.bottom = (rcScan.top + rcTemp.Height());
+			m_chkScanRecursive.MoveWindow(rcScan);
 		}
 
 		if(m_sttFolderTree.GetSafeHwnd()) {
@@ -235,30 +397,41 @@ void CDuplicateFileFinderDlg::OnSize(UINT nType, int cx, int cy)
 			m_sttFolderTree.MoveWindow(rcTemp);
 			rcLabel = rcTemp;
 			rcLabel.OffsetRect(0, rcLabel.Height() + VERTICAL_PADDING);
-		}
-
-		if(m_lvwFolders.GetSafeHwnd()) {
-			rcLabel.right = rcButton.right;
-			rcLabel.bottom = (rcGroupBox.top - VERTICAL_PADDING);
 			rcFolderTree = rcLabel;
-			m_lvwFolders.MoveWindow(rcLabel);
 		}
 
 		if(m_btnBrowse.GetSafeHwnd()) {
-			CRect	rcBrowse;
+			
 			m_btnBrowse.GetWindowRect(rcButton);
-			rcBrowse.top = (rcDialog.top + VERTICAL_PADDING/2);
-			rcBrowse.right = rcLabel.right;
-			rcBrowse.left = (rcBrowse.right - rcButton.Width());
-			rcBrowse.bottom = (rcBrowse.top + rcButton.Height());
+			rcBrowse.bottom = (rcExclude.top - VERTICAL_PADDING);
+			rcBrowse.left = (rcDialog.left + HORIZONTAL_PADDING);
+			rcBrowse.right = (rcBrowse.left + rcButton.Width());
+			rcBrowse.top = (rcBrowse.bottom - rcButton.Height());
 			m_btnBrowse.MoveWindow(rcBrowse);
+
+			rcBrowse.OffsetRect(rcBrowse.Width() + HORIZONTAL_PADDING, 0);
+		}
+
+		if(m_btnRemove.GetSafeHwnd()) {
+			m_btnRemove.MoveWindow(rcBrowse);
+			rcBrowse.OffsetRect(rcBrowse.Width() + HORIZONTAL_PADDING, 0);
+		}
+
+		if(m_btnClear.GetSafeHwnd()) {
+			m_btnClear.MoveWindow(rcBrowse);
+		}
+
+		if(m_lvwFolders.GetSafeHwnd()) {
+			rcFolderTree.right = LEFT_PANEL_WIDTH;
+			rcFolderTree.bottom = (rcBrowse.top - VERTICAL_PADDING);
+			m_lvwFolders.MoveWindow(rcFolderTree);
 		}
 
 		if(m_sttDuplicatedFiles.GetSafeHwnd()) {
 			rcTemp.OffsetRect(rcLabel.Width() + HORIZONTAL_PADDING, 0);
 			m_sttDuplicatedFiles.MoveWindow(rcTemp);
 			rcLabel = rcTemp;
-
+			rcLabel.left = (LEFT_PANEL_WIDTH + HORIZONTAL_PADDING);
 			rcLabel.OffsetRect(0, rcTemp.Height() + VERTICAL_PADDING);
 		}
 
@@ -270,7 +443,7 @@ void CDuplicateFileFinderDlg::OnSize(UINT nType, int cx, int cy)
 			}
 
 			rcTemp = rcLabel;
-			rcTemp.bottom = (rcFolderTree.bottom - rcButton.Height() - VERTICAL_PADDING);
+			rcTemp.bottom = (rcExclude.bottom - rcButton.Height() - VERTICAL_PADDING);
 			rcTemp.right = (rcDialog.right - HORIZONTAL_PADDING);
 			rcListBox = rcTemp;
 			m_lstFiles.MoveWindow(rcTemp);
@@ -278,7 +451,7 @@ void CDuplicateFileFinderDlg::OnSize(UINT nType, int cx, int cy)
 			if(m_btnProcessAll.GetSafeHwnd()) {
 				rcTemp.left = (rcListBox.left + (rcListBox.Width()-rcButton.Width())/2);
 				rcTemp.right = (rcTemp.left + rcButton.Width());
-				rcTemp.bottom = rcFolderTree.bottom;
+				rcTemp.bottom = rcExclude.bottom;
 				rcTemp.top = (rcTemp.bottom - rcButton.Height());
 
 				m_btnProcessAll.MoveWindow(rcTemp);
@@ -354,23 +527,48 @@ void CDuplicateFileFinderDlg::InitUI()
 		lf.lfItalic = 1;
 		m_fntItalic.CreateFontIndirect(&lf);
 		m_sttCheckboxMessage.SetFont(&m_fntItalic);
+
+		m_sttExclude.SetFont(&m_fntBold);
+		m_btnBrowse.SetFont(&m_fntBold);
+		m_btnRemove.SetFont(&m_fntBold);
+		m_btnClear.SetFont(&m_fntBold);
+
+		m_sttPatternsTips.SetFont(&m_fntItalic);
 	}
 
-	m_chkName.SetCheck(BST_CHECKED);
+	m_chkContent.SetCheck(BST_CHECKED);
 	m_chkSize.SetCheck(BST_CHECKED);
 	OnBnClickedChkSize();
 
 	m_lvwFolders.InsertColumn(0, _T("Path"), LVCFMT_LEFT, 500);
 	m_lvwFolders.GetHeaderCtrl()->SetFont(&m_fntBold);
+	m_lvwFolders.SetExtendedStyle(LVS_EX_FULLROWSELECT | LVS_EX_GRIDLINES | LVS_EX_INFOTIP);
 
 	m_lvwDetail.SetExtendedStyle(LVS_EX_FULLROWSELECT | LVS_EX_GRIDLINES | LVS_EX_INFOTIP);
 	m_lvwDetail.GetHeaderCtrl()->SetFont(&m_fntBold);
+
+	m_cboSizeCriteria.AddString(_T("<"));
+	m_cboSizeCriteria.AddString(_T("="));
+	m_cboSizeCriteria.AddString(_T(">"));
+	m_cboSizeCriteria.SetCurSel(ESizeLessThan);
+
+	m_cbSizeUnit.AddString(_T("Bytes"));
+	m_cbSizeUnit.AddString(_T("KB"));
+	m_cbSizeUnit.AddString(_T("MB"));
+	m_cbSizeUnit.AddString(_T("GB"));
+	m_cbSizeUnit.AddString(_T("TB"));
+	m_cbSizeUnit.AddString(_T("PB"));
+	m_cbSizeUnit.SetCurSel(eByte);
+	SetDlgItemInt(IDC_EDT_EXCLUDE_SIZE, 0);
+
+	m_chkScanRecursive.SetCheck(BST_CHECKED);
 }
+
 
 void CDuplicateFileFinderDlg::OnHdnItemclickLvwDetail(NMHDR *pNMHDR, LRESULT *pResult)
 {
 	LPNMHEADER phdr = reinterpret_cast<LPNMHEADER>(pNMHDR);
-	// TODO: Add your control notification handler code here
+	m_btnRemove.EnableWindow(m_lvwFolders.GetSelectedCount()>0);
 	*pResult = 0;
 }
 
@@ -421,11 +619,13 @@ void CDuplicateFileFinderDlg::ResetDetailList()
 		m_lvwDetail.InsertColumn(m_lvwDetail.GetHeaderCtrl()->GetItemCount(), _T("Create Time"), LVCFMT_LEFT, 100);
 	}
 	if(m_chkAccessTime.GetCheck() == BST_CHECKED) {
-		m_lvwDetail.InsertColumn(m_lvwDetail.GetHeaderCtrl()->GetItemCount(), _T("Access Time"), LVCFMT_LEFT, 100);
+		m_lvwDetail.InsertColumn(m_lvwDetail.GetHeaderCtrl()->GetItemCount(), _T("Last Access Time"), LVCFMT_LEFT, 100);
 	}
 	if(m_chkWriteTime.GetCheck() == BST_CHECKED) {
-		m_lvwDetail.InsertColumn(m_lvwDetail.GetHeaderCtrl()->GetItemCount(), _T("Write Time"), LVCFMT_LEFT, 100);
+		m_lvwDetail.InsertColumn(m_lvwDetail.GetHeaderCtrl()->GetItemCount(), _T("Last Write Time"), LVCFMT_LEFT, 100);
 	}
+
+	m_lvwDetail.DeleteAllItems();
 }
 
 void CDuplicateFileFinderDlg::OnBnClickedChkName()
@@ -509,10 +709,45 @@ void CDuplicateFileFinderDlg::OnBnClickedBtnScan()
 		arrPaths.Add(strPath);
 	}
 
-	if(!m_pScanThread->Initialize(arrPaths)) {
+	if(!m_pScanThread->Initialize(arrPaths, (m_chkScanRecursive.GetCheck() == BST_CHECKED))) {
 		AfxMessageBox(_T("An error occred!"), MB_ICONEXCLAMATION);
 		return;
 	}
+	m_pScanThread->RemoveAllFilters();
+	if( (m_chkExcludePattern.GetCheck() == BST_CHECKED) && (m_edtPattern.GetWindowTextLength() > 0) ) {
+		CString	strPatterns;
+		m_edtPattern.GetWindowText(strPatterns);
+		CPatternFilter* pFilter = new CPatternFilter(_T("Patterns"), strPatterns);
+		m_pScanThread->AddFilter(pFilter);
+	}
+
+	if(m_chkExcludeSize.GetCheck() == BST_CHECKED) {
+		ESizeFilterCriteria eCriteria = static_cast<ESizeFilterCriteria>(m_cboSizeCriteria.GetCurSel());
+		__int64 nSize = static_cast<__int64>(GetDlgItemInt(IDC_EDT_EXCLUDE_SIZE));
+		ESizeUnit eUnit = static_cast<ESizeUnit>(m_cbSizeUnit.GetCurSel());
+
+		CSizeFilter* pSizeFilter = new CSizeFilter(_T("Size"), eCriteria, nSize, eUnit);
+		m_pScanThread->AddFilter(pSizeFilter);
+	}
+
+	UINT nAttrs = 0;
+	if(m_chkExcludeROnly.GetCheck() == BST_CHECKED) {
+		nAttrs |= FILE_ATTRIBUTE_READONLY;
+	}
+	if(m_chkExcludeHidden.GetCheck() == BST_CHECKED) {
+		nAttrs |= FILE_ATTRIBUTE_HIDDEN;
+	}
+	if(m_chkExcludeSystem.GetCheck() == BST_CHECKED) {
+		nAttrs |= FILE_ATTRIBUTE_SYSTEM;
+	}
+	if(m_chkExcludeTemp.GetCheck() == BST_CHECKED) {
+		nAttrs |= FILE_ATTRIBUTE_TEMPORARY;
+	}
+	if(m_chkExcludeArchive.GetCheck() == BST_CHECKED) {
+		nAttrs |= FILE_ATTRIBUTE_ARCHIVE;
+	}
+	CAttributesFilter* pAttrFilter = new CAttributesFilter(_T("Attributes"), nAttrs);
+	m_pScanThread->AddFilter(pAttrFilter);
 
 	if(m_pScanThread->m_hThread != nullptr) {
 		CloseHandle(m_pScanThread->m_hThread);
@@ -576,6 +811,7 @@ void CDuplicateFileFinderDlg::OnBnClickedBtnBrowse()
 			}
 			nItem = m_lvwFolders.InsertItem(m_lvwFolders.GetItemCount(), strPath);
 			m_arrPaths.SetAt(strPath,  reinterpret_cast<void*>(nItem));
+			m_btnClear.EnableWindow(m_lvwFolders.GetItemCount()>0);
 		}
 	}
 }
@@ -605,6 +841,7 @@ void CDuplicateFileFinderDlg::OnDropFiles(HDROP hDropInfo)
 					}
 					nItem = m_lvwFolders.InsertItem(m_lvwFolders.GetItemCount(), strPath);
 					m_arrPaths.SetAt(strPath,  reinterpret_cast<void*>(nItem));
+					m_btnClear.EnableWindow(m_lvwFolders.GetItemCount()>0);
 				}
 				else {
 					strMsg.Format(_T("Path \"%s\" is not a folder!"), strPath);
@@ -615,4 +852,64 @@ void CDuplicateFileFinderDlg::OnDropFiles(HDROP hDropInfo)
 		}
 	}
 	DragFinish(hDropInfo);
+}
+
+void CDuplicateFileFinderDlg::OnBnClickedBtnClear()
+{
+	if(m_lvwFolders.GetItemCount() > 0) {
+		int nConfirm = AfxMessageBox(_T("Are you sure to remove all folders in the list?"), MB_YESNO | MB_ICONQUESTION);
+		if(nConfirm != IDYES)
+			return;
+	}
+	m_lvwFolders.DeleteAllItems();
+	m_arrPaths.RemoveAll();
+	m_btnClear.EnableWindow(m_lvwFolders.GetItemCount()>0);
+	m_btnRemove.EnableWindow(m_lvwFolders.GetSelectedCount()>0);
+}
+
+
+void CDuplicateFileFinderDlg::OnBnClickedBtnRemove()
+{
+	UINT nState = 0;
+	CString	strPath;
+	if(m_lvwFolders.GetItemCount() > 0) {
+		int nConfirm = AfxMessageBox(_T("Are you sure to remove all selected folders?"), MB_YESNO | MB_ICONQUESTION);
+		if(nConfirm != IDYES)
+			return;
+	}
+
+	for(int i=m_lvwFolders.GetItemCount()-1;i>=0;i--) {
+		nState = m_lvwFolders.GetItemState(i, LVIS_SELECTED);
+		if(nState & LVIS_SELECTED) {
+			strPath = m_lvwFolders.GetItemText(i, 0);
+			if(m_lvwFolders.DeleteItem(i)) {
+				m_arrPaths.RemoveKey(strPath);
+			}
+		}
+	}
+	m_btnClear.EnableWindow(m_lvwFolders.GetItemCount()>0);
+	m_btnRemove.EnableWindow(m_lvwFolders.GetSelectedCount()>0);
+}
+
+
+void CDuplicateFileFinderDlg::OnLvnItemchangedLvwFolders(NMHDR *pNMHDR, LRESULT *pResult)
+{
+	LPNMLISTVIEW pNMLV = reinterpret_cast<LPNMLISTVIEW>(pNMHDR);
+	m_btnRemove.EnableWindow(m_lvwFolders.GetSelectedCount()>0);
+	*pResult = 0;
+}
+
+
+void CDuplicateFileFinderDlg::OnBnClickedChkExcludePattern()
+{
+	m_edtPattern.EnableWindow(m_chkExcludePattern.GetCheck() == BST_CHECKED);
+	m_sttPatternsTips.ShowWindow((m_chkExcludePattern.GetCheck() == BST_CHECKED)?TRUE:FALSE);
+}
+
+
+void CDuplicateFileFinderDlg::OnBnClickedChkExcludeSize()
+{
+	m_cboSizeCriteria.EnableWindow(m_chkExcludeSize.GetCheck() == BST_CHECKED);
+	m_edtExcludeSize.EnableWindow(m_chkExcludeSize.GetCheck() == BST_CHECKED);
+	m_cbSizeUnit.EnableWindow(m_chkExcludeSize.GetCheck() == BST_CHECKED);
 }

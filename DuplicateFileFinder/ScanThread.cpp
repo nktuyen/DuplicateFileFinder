@@ -20,7 +20,7 @@ CScanThread::CScanThread(CWnd* pOwner /* = nullptr */, CWorkerDialog* pProgressD
 
 CScanThread::~CScanThread()
 {
-	
+	RemoveAllFilters();
 }
 
 BOOL CScanThread::InitInstance()
@@ -56,8 +56,9 @@ void CScanThread::Finalize()
 	}
 }
 
-BOOL CScanThread::Initialize(const CStringArray& strPath)
+BOOL CScanThread::Initialize(const CStringArray& strPath, BOOL bRecursive)
 {
+	m_bRecursive = bRecursive;
 	m_arrPaths.Copy(strPath);
 
 	if(m_arrPaths.GetCount() <= 0)
@@ -90,9 +91,23 @@ int CScanThread::Run()
 			break;
 		LeaveCriticalSection(&m_RunSection);
 
-		m_pProgressDlg->SetMessageContent(_T("XXX"));
-		Sleep(100);
+		
 	}
 	LeaveCriticalSection(&m_RunSection);
 	return ExitInstance();
+}
+
+void CScanThread::RemoveAllFilters()
+{
+	if(m_Filters.GetCount() > 0) {
+		POSITION pos = m_Filters.GetStartPosition();
+		EFileFolderFilterCriteria eCriteria;
+		CFileFolderFilter* pFilter = nullptr;
+		m_Filters.GetNextAssoc(pos, eCriteria, pFilter);
+		if(pFilter != nullptr) {
+			delete pFilter;
+			pFilter = nullptr;
+		}
+		m_Filters.RemoveAll();
+	}
 }

@@ -79,4 +79,26 @@ public:
 	
 	CButton m_btnBrowse;
 	afx_msg void OnBnClickedBtnBrowse();
+	CStatic m_sttExclude;
+	CButton m_btnRemove;
+	CButton m_btnClear;
+	afx_msg void OnBnClickedBtnClear();
+	afx_msg void OnBnClickedBtnRemove();
+	afx_msg void OnLvnItemchangedLvwFolders(NMHDR *pNMHDR, LRESULT *pResult);
+	CButton m_chkExcludePattern;
+	CEdit m_edtPattern;
+	CButton m_chkExcludeSize;
+	CEdit m_edtExcludeSize;
+	CComboBox m_cbSizeUnit;
+	CComboBox m_cboSizeCriteria;
+	CStatic m_sttExcludeAttr;
+	CButton m_chkExcludeROnly;
+	CButton m_chkExcludeHidden;
+	CButton m_chkExcludeSystem;
+	afx_msg void OnBnClickedChkExcludePattern();
+	afx_msg void OnBnClickedChkExcludeSize();
+	CStatic m_sttPatternsTips;
+	CButton m_chkExcludeTemp;
+	CButton m_chkExcludeArchive;
+	CButton m_chkScanRecursive;
 };
