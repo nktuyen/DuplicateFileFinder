@@ -15,9 +15,13 @@ CAttributesFilter::~CAttributesFilter(void)
 
 BOOL CAttributesFilter::OnFilter(const CString& strPath)
 {
-	DWORD dwAttrs = GetFileAttributes(strPath);
+	if(m_nAttributes == 0)
+		return FALSE;
 
-	if((dwAttrs & m_nAttributes) != 0)
+	DWORD dwSrcAttrs = GetFileAttributes(strPath);
+	DWORD dwDstAttrs = (dwSrcAttrs | m_nAttributes);
+	
+	if(dwDstAttrs & dwSrcAttrs)
 		return TRUE;
 
 	return FALSE;

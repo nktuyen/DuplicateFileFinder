@@ -22,8 +22,6 @@ public:
 
 	protected:
 	virtual void DoDataExchange(CDataExchange* pDX);	// DDX/DDV support
-
-
 // Implementation
 protected:
 	HICON m_hIcon;
@@ -35,6 +33,7 @@ protected:
 	afx_msg HCURSOR OnQueryDragIcon();
 	afx_msg void OnGetMinMaxInfo(MINMAXINFO* lpMMI);
 	afx_msg void OnDestroy();
+	afx_msg void OnCancel();
 	afx_msg void OnSize(UINT nType, int cx, int cy);
 	void InitUI();
 	BOOL AtLeastOneChecked();
@@ -76,7 +75,8 @@ public:
 	afx_msg void OnBnClickedChkAtime();
 	afx_msg void OnBnClickedChkWtime();
 	afx_msg void OnBnClickedBtnScan();
-	
+	afx_msg LRESULT OnScanThreadMessage(WPARAM wparam, LPARAM lParam);
+	static UINT m_sThreadMessage;
 	CButton m_btnBrowse;
 	afx_msg void OnBnClickedBtnBrowse();
 	CStatic m_sttExclude;
@@ -101,4 +101,6 @@ public:
 	CButton m_chkExcludeTemp;
 	CButton m_chkExcludeArchive;
 	CButton m_chkScanRecursive;
+	CComboBox m_cboDuplicatedFileTypes;
+	CMapStringToString m_arrFileTypes;
 };

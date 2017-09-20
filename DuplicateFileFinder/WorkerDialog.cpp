@@ -61,6 +61,16 @@ BOOL CWorkerDialog::OnInitDialog()
 	SetProgressType(m_eType);
 	SetProgressRange(m_nLow, m_nHi);
 
+	if(m_pParentWnd) {
+		CRect	rcClient;
+		CRect	rcParent;
+
+		GetClientRect(rcClient);
+		m_pParentWnd->GetClientRect(rcParent);
+
+		SetWindowPos(&wndNoTopMost, rcParent.Width()/2-rcClient.Width()/2, rcParent.Height()/2-rcClient.Height()/2, 0, 0, SWP_NOSIZE);
+	}
+
 	return TRUE;
 }
 
@@ -70,14 +80,13 @@ void CWorkerDialog::OnCancel()
 	GetExitCodeThread(m_pWorkerThread->m_hThread, &dwCode);
 
 	if(STILL_ACTIVE == dwCode) {
-		m_pWorkerThread->Finalize();
+		m_pWorkerThread->SuspendThread();
 	}
 	else {
 		CDialog::OnCancel();
 		return;
 	}
 
-	m_pWorkerThread->SuspendThread();
 	if(m_nTimerID != 0) {
 		KillTimer(m_nTimerID);
 		m_nTimerID = 0;
@@ -94,6 +103,7 @@ void CWorkerDialog::OnCancel()
 		return;
 	}
 
+	m_pWorkerThread->Finalize();
 	m_pWorkerThread->ResumeThread();
 	if(nullptr != m_pWorkerThread->m_hThread) {
 		CloseHandle(m_pWorkerThread->m_hThread);

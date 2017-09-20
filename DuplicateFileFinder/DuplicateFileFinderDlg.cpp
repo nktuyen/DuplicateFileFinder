@@ -19,12 +19,17 @@
 #define HORIZONTAL_PADDING	4
 #define VERTICAL_PADDING	6
 
+UINT CDuplicateFileFinderDlg::m_sThreadMessage = 0U;
+
 CDuplicateFileFinderDlg::CDuplicateFileFinderDlg(CWnd* pParent /*=NULL*/)
 	: CDialogEx(CDuplicateFileFinderDlg::IDD, pParent)
 {
 	m_hIcon = AfxGetApp()->LoadIcon(IDR_MAINFRAME);
 	m_pWorkerDlg = new CWorkerDialog(this);
-	m_pScanThread = new CScanThread(this, m_pWorkerDlg);
+	CString	strMsg;
+	strMsg.Format(_T("%s_%d_%d"), AfxGetAppName(), reinterpret_cast<int>(AfxGetInstanceHandle()), static_cast<int>(GetCurrentProcessId()));
+	CDuplicateFileFinderDlg::m_sThreadMessage = RegisterWindowMessage(strMsg);
+	m_pScanThread = new CScanThread(this, m_pWorkerDlg, m_sThreadMessage);
 	m_pWorkerDlg->SetWorkerThread(m_pScanThread);
 }
 
@@ -67,6 +72,7 @@ void CDuplicateFileFinderDlg::DoDataExchange(CDataExchange* pDX)
 	DDX_Control(pDX, IDC_CHK_EXCLUDE_ATTR_TEMP, m_chkExcludeTemp);
 	DDX_Control(pDX, IDC_CHK_EXCLUDE_ATTR_ARCHIVE, m_chkExcludeArchive);
 	DDX_Control(pDX, IDC_CHK_SCAN_RECURSIVE, m_chkScanRecursive);
+	DDX_Control(pDX, IDC_CBO_DUPLICATED_FILE_TYPES, m_cboDuplicatedFileTypes);
 }
 
 BEGIN_MESSAGE_MAP(CDuplicateFileFinderDlg, CDialogEx)
@@ -91,6 +97,7 @@ BEGIN_MESSAGE_MAP(CDuplicateFileFinderDlg, CDialogEx)
 	ON_NOTIFY(LVN_ITEMCHANGED, IDC_LVW_FOLDERS, &CDuplicateFileFinderDlg::OnLvnItemchangedLvwFolders)
 	ON_BN_CLICKED(IDC_CHK_EXCLUDE_PATTERN, &CDuplicateFileFinderDlg::OnBnClickedChkExcludePattern)
 	ON_BN_CLICKED(IDC_CHK_EXCLUDE_SIZE, &CDuplicateFileFinderDlg::OnBnClickedChkExcludeSize)
+	ON_REGISTERED_MESSAGE(CDuplicateFileFinderDlg::m_sThreadMessage, &CDuplicateFileFinderDlg::OnScanThreadMessage)
 END_MESSAGE_MAP()
 
 
@@ -428,11 +435,23 @@ void CDuplicateFileFinderDlg::OnSize(UINT nType, int cx, int cy)
 		}
 
 		if(m_sttDuplicatedFiles.GetSafeHwnd()) {
-			rcTemp.OffsetRect(rcLabel.Width() + HORIZONTAL_PADDING, 0);
-			m_sttDuplicatedFiles.MoveWindow(rcTemp);
-			rcLabel = rcTemp;
+			m_sttDuplicatedFiles.GetWindowRect(rcTemp);
 			rcLabel.left = (LEFT_PANEL_WIDTH + HORIZONTAL_PADDING);
-			rcLabel.OffsetRect(0, rcTemp.Height() + VERTICAL_PADDING);
+			rcLabel.right = (rcLabel.left + rcTemp.Width());
+			rcLabel.top = (rcDialog.top + VERTICAL_PADDING);
+			rcLabel.bottom = (rcLabel.top + rcTemp.Height());
+			m_sttDuplicatedFiles.MoveWindow(rcLabel);
+			rcLabel.OffsetRect(0, rcLabel.Height() + VERTICAL_PADDING);
+		}
+
+		if(m_cboDuplicatedFileTypes.GetSafeHwnd()) {
+			m_cboDuplicatedFileTypes.GetWindowRect(rcTemp);
+			CRect	rcFileTypes;
+			rcFileTypes.right = (rcDialog.right - HORIZONTAL_PADDING);
+			rcFileTypes.left = (rcFileTypes.right - rcTemp.Width());
+			rcFileTypes.top = (rcDialog.top + VERTICAL_PADDING);
+			rcFileTypes.bottom = (rcFileTypes.top + rcTemp.Height());
+			m_cboDuplicatedFileTypes.MoveWindow(rcFileTypes);
 		}
 
 		if(m_lstFiles.GetSafeHwnd()) {
@@ -698,6 +717,10 @@ void CDuplicateFileFinderDlg::OnBnClickedBtnScan()
 
 	m_lstFiles.ResetContent();
 	m_lvwDetail.DeleteAllItems();
+	m_cboDuplicatedFileTypes.ResetContent();
+	m_arrFileTypes.RemoveAll();
+	m_cboDuplicatedFileTypes.SetItemDataPtr(m_cboDuplicatedFileTypes.AddString(_T(" -------------------- All -------------------- ")), nullptr);
+	m_cboDuplicatedFileTypes.SetCurSel(0);
 
 	POSITION pos = m_arrPaths.GetStartPosition();
 	CString	strPath;
@@ -758,6 +781,7 @@ void CDuplicateFileFinderDlg::OnBnClickedBtnScan()
 
 	m_pWorkerDlg->Create(CWorkerDialog::IDD, this);
 	m_pWorkerDlg->ShowWindow(SW_SHOW);
+	
 	m_pScanThread->CreateThread();
 }
 
@@ -912,4 +936,37 @@ void CDuplicateFileFinderDlg::OnBnClickedChkExcludeSize()
 	m_cboSizeCriteria.EnableWindow(m_chkExcludeSize.GetCheck() == BST_CHECKED);
 	m_edtExcludeSize.EnableWindow(m_chkExcludeSize.GetCheck() == BST_CHECKED);
 	m_cbSizeUnit.EnableWindow(m_chkExcludeSize.GetCheck() == BST_CHECKED);
+}
+
+
+LRESULT CDuplicateFileFinderDlg::OnScanThreadMessage(WPARAM wparam, LPARAM lParam)
+{
+	CString* pStr = (CString*)lParam;
+	if(pStr != nullptr) {
+		CString	strPath = (pStr->GetBuffer());
+		m_lstFiles.AddString(strPath);
+
+		SHFILEINFO si = {0};
+		CString	strDisplayName;
+		CString	strNameOut;
+		if(SHGetFileInfo(strPath, 0, &si, sizeof(SHFILEINFO), SHGFI_TYPENAME ) > 0)
+		{
+			strDisplayName = si.szTypeName;
+			if( (!m_arrFileTypes.Lookup(strDisplayName, strNameOut)) || (strNameOut.IsEmpty()) ) {
+				m_arrFileTypes.SetAt(strDisplayName, strDisplayName);
+				m_cboDuplicatedFileTypes.AddString(strDisplayName);
+			}
+
+		}
+	}
+
+	return (LRESULT)0;
+}
+
+void CDuplicateFileFinderDlg::OnCancel()
+{
+	if(m_pWorkerDlg && m_pWorkerDlg->GetSafeHwnd() &&  m_pWorkerDlg->IsWindowVisible())
+		return;
+
+	CDialogEx::OnCancel();
 }

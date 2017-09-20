@@ -1,6 +1,6 @@
 #include "stdafx.h"
 #include "SizeFilter.h"
-
+#include <math.h>
 
 CSizeFilter::CSizeFilter(LPCTSTR lpszName /* = nullptr */, ESizeFilterCriteria eSizeCriteria /* = ESizeLessThan */, __int64 nSize /* = 0 */, ESizeUnit eUnit /* = eByte */)
 	: CFileFolderFilter(EFilter_Size, lpszName)
@@ -30,19 +30,24 @@ BOOL CSizeFilter::OnFilter(const CString& strPath)
 		}
 		CloseHandle(hFile);
 	}
+	else
+		return FALSE;
+
+	__int64 nFilterSize = m_nSize*static_cast<__int64>( pow((int)1024, static_cast<double>(m_eUnit)) );
+	
 
 	switch (m_eFilterCriteria)
 	{
 	case ESizeLessThan:
-		if(nSize < m_nSize)
+		if(nSize < nFilterSize)
 			return TRUE;
 		break;
 	case ESizeEqual:
-		if(nSize == m_nSize)
+		if(nSize == nFilterSize)
 			return TRUE;
 		break;
 	case ESizeGreaterThan:
-		if(nSize > m_nSize)
+		if(nSize > nFilterSize)
 			return TRUE;
 
 		break;
@@ -56,6 +61,9 @@ BOOL CSizeFilter::OnFilter(const CString& strPath)
 
 BOOL CSizeFilter::OnFilter(HANDLE handle) 
 {
+	if(handle == INVALID_HANDLE_VALUE)
+		return FALSE;
+
 	__int64 nSize = 0;
 	
 	if(handle != INVALID_HANDLE_VALUE) {
@@ -65,18 +73,20 @@ BOOL CSizeFilter::OnFilter(HANDLE handle)
 		}
 	}
 
+	__int64 nFilterSize = m_nSize*static_cast<__int64>( pow((int)1024, static_cast<double>(m_eUnit)) );
+
 	switch (m_eFilterCriteria)
 	{
 	case ESizeLessThan:
-		if(nSize < m_nSize)
+		if(nSize < nFilterSize)
 			return TRUE;
 		break;
 	case ESizeEqual:
-		if(nSize == m_nSize)
+		if(nSize == nFilterSize)
 			return TRUE;
 		break;
 	case ESizeGreaterThan:
-		if(nSize > m_nSize)
+		if(nSize > nFilterSize)
 			return TRUE;
 
 		break;
