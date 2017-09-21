@@ -193,9 +193,12 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="AttributesFilter.h" />
+    <ClInclude Include="Checksum.h" />
+    <ClInclude Include="CommonDef.h" />
     <ClInclude Include="DuplicateFileFinder.h" />
     <ClInclude Include="DuplicateFileFinderDlg.h" />
     <ClInclude Include="FileFolderFilter.h" />
+    <ClInclude Include="FileInformation.h" />
     <ClInclude Include="PatternFilter.h" />
     <ClInclude Include="Resource.h" />
     <ClInclude Include="ScanThread.h" />
@@ -206,9 +209,11 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="AttributesFilter.cpp" />
+    <ClCompile Include="Checksum.cpp" />
     <ClCompile Include="DuplicateFileFinder.cpp" />
     <ClCompile Include="DuplicateFileFinderDlg.cpp" />
     <ClCompile Include="FileFolderFilter.cpp" />
+    <ClCompile Include="FileInformation.cpp" />
     <ClCompile Include="PatternFilter.cpp" />
     <ClCompile Include="ScanThread.cpp" />
     <ClCompile Include="SizeFilter.cpp" />

@@ -9,7 +9,6 @@
 #include "WorkerDialog.h"
 
 class CScanThread;
-struct _SFilesDuplicateInfo;
 
 // CDuplicateFileFinderDlg dialog
 class CDuplicateFileFinderDlg : public CDialogEx

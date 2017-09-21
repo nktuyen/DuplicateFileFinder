@@ -4,6 +4,8 @@
 #include "SizeFilter.h"
 #include "AttributesFilter.h"
 #include <cstdint>
+#include "CommonDef.h"
+#include "FileInformation.h"
 
 class CWorkerDialog;
 
@@ -27,18 +29,15 @@ private:
 	void WalkDir(const CString& strPath, BOOL bRecursive, __int64& iTotalSize);
 	BOOL OnEnumChild(HWND hChild);
 	BOOL IsExcludeFile(const CString& strPath);
-	UINT FindDuplicate(const CString& strPath, CMapStringToString& arrDuplicate, struct _SDuplicateInfo* pDuplicateInfo, CMapStringToString* pTotalDuplicateFiles = nullptr);
+	UINT IsDuplicateFile(const CString& strPath, CMapStringToString& arrIdenticalFiles, CFileInformation* pDuplicateInfo = nullptr);
 	static BOOL CALLBACK EnumChildProc(HWND   hwnd, LPARAM lParam);
-	void crc8PushByte(uint8_t *crc, uint8_t ch);
-	uint8_t CRC(uint8_t *pcrc, uint8_t *block, uint16_t count);
-	bool CRCFile(const CString& strPath,CArray<uint16_t>& vecCRC, CArray<uint16_t>* vecCRCCmp = nullptr, struct _SDuplicateInfo* pDuplicateInfo = nullptr);
-	__int64 SizeOfFile(const CString& strPath);
+	void RemoveAllScannedFiles();
 private:
 	CWorkerDialog* m_pProgressDlg;
-	CStringArray m_arrScannedFiles;
-	CMapStringToString m_arrDuplicateChecks;
 	UINT m_nDuplicateMask;
-	CMapStringToString m_arrScannedFolder;
+	CMapStringToPtr		m_arrScannedFiles;
+	CMapStringToString	m_arrFilesToCheck;
+	CMapStringToString	m_arrScannedFolder;
 	CWnd*	m_pOwnerWnd;
 	UINT m_nMessageID;
 	CString	m_strCurrentFile;

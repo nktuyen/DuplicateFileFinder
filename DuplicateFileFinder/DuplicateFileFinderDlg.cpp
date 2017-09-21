@@ -8,6 +8,7 @@
 #include "afxdialogex.h"
 #include "WorkerDialog.h"
 #include "ScanThread.h"
+#include "CommonDef.h"
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
@@ -21,23 +22,6 @@
 
 UINT CDuplicateFileFinderDlg::m_sThreadMessage = 0U;
 
-struct _SDuplicateInfo
-{
-	UINT nMask;
-	TCHAR szName[MAX_PATH+1];
-	__int64 iSize;
-	DWORD dwAttributes;
-	CArray<uint16_t>* pCRC;
-	SYSTEMTIME tmCreate;
-	SYSTEMTIME tmAccess;
-	SYSTEMTIME tmWrite;
-};
-
-struct _SFilesDuplicateInfo
-{
-	struct _SDuplicateInfo DuplicateInfo;
-	CMapStringToString* DuplicateFiles;
-};
 
 CDuplicateFileFinderDlg::CDuplicateFileFinderDlg(CWnd* pParent /*=NULL*/)
 	: CDialogEx(CDuplicateFileFinderDlg::IDD, pParent)
@@ -655,7 +639,7 @@ void CDuplicateFileFinderDlg::ResetDetailList()
 		m_lvwDetail.InsertColumn(m_lvwDetail.GetHeaderCtrl()->GetItemCount(), _T("Attributes"), LVCFMT_LEFT, 70);
 	}
 	if(m_chkContent.GetCheck() == BST_CHECKED) {
-		m_lvwDetail.InsertColumn(m_lvwDetail.GetHeaderCtrl()->GetItemCount(), _T("CRC"), LVCFMT_LEFT, 70);
+		m_lvwDetail.InsertColumn(m_lvwDetail.GetHeaderCtrl()->GetItemCount(), _T("Checksum"), LVCFMT_LEFT, 70);
 	}
 	if(m_chkCreateTime.GetCheck() == BST_CHECKED) {
 		m_lvwDetail.InsertColumn(m_lvwDetail.GetHeaderCtrl()->GetItemCount(), _T("Create Time"), LVCFMT_LEFT, 100);
@@ -991,7 +975,7 @@ void CDuplicateFileFinderDlg::OnBnClickedChkExcludeSize()
 LRESULT CDuplicateFileFinderDlg::OnScanThreadMessage(WPARAM wparam, LPARAM lParam)
 {
 	CString* pStr = (CString*)wparam;
-	struct _SFilesDuplicateInfo* pDup = (struct _SFilesDuplicateInfo*)lParam;
+	SFilesDuplicateInfo* pDup = (SFilesDuplicateInfo*)lParam;
 	if( (pStr != nullptr) && (pDup != nullptr) ) {
 		CString	strPath = (pStr->GetBuffer());
 		int nLow, nHi;
@@ -1065,7 +1049,7 @@ void CDuplicateFileFinderDlg::DeleteDuplicateInfo()
 	if(mapDuplicateFiles.GetCount() > 0) {
 		POSITION pos = mapDuplicateFiles.GetStartPosition();
 		CString strPath;
-		struct _SFilesDuplicateInfo* pDup = nullptr;
+		SFilesDuplicateInfo* pDup = nullptr;
 
 		while (pos)
 		{
@@ -1074,8 +1058,8 @@ void CDuplicateFileFinderDlg::DeleteDuplicateInfo()
 				if(pDup->DuplicateFiles != nullptr)
 					delete pDup->DuplicateFiles;
 
-				if(pDup->DuplicateInfo.pCRC != nullptr)
-					delete pDup->DuplicateInfo.pCRC;
+				if(pDup->DuplicateInfo != nullptr)
+					delete pDup->DuplicateInfo;
 
 				delete pDup;
 				pDup = nullptr;
@@ -1093,7 +1077,7 @@ void CDuplicateFileFinderDlg::OnLbnSelchangeLstFiles()
 
 	int nSel = m_lstFiles.GetCurSel();
 	if(nSel != LB_ERR) {
-		struct _SFilesDuplicateInfo* pDup = (struct _SFilesDuplicateInfo*)m_lstFiles.GetItemDataPtr(nSel);
+		SFilesDuplicateInfo* pDup = (SFilesDuplicateInfo*)m_lstFiles.GetItemDataPtr(nSel);
 		if(pDup != nullptr) {
 			if(pDup->DuplicateFiles != nullptr) {
 				int nItem = -1;
@@ -1118,27 +1102,27 @@ void CDuplicateFileFinderDlg::OnLbnSelchangeLstFiles()
 					m_lvwDetail.SetItemText(nItem, 1, strPath);
 					nCol++;
 
-					if(pDup->DuplicateInfo.nMask & DUPLICATE_CRITERIA_SIZE) {
-						strKey.Format(_T("%I64d"), pDup->DuplicateInfo.iSize);
+					if(pDup->DuplicateInfo->CheckMask(DUPLICATE_CRITERIA_SIZE)) {
+						strKey.Format(_T("%I64d"), pDup->DuplicateInfo->getSize());
 						m_lvwDetail.SetItemText(nItem, nCol, strKey);
 						nCol++;
 					}
 
-					if(pDup->DuplicateInfo.nMask & DUPLICATE_CRITERIA_ATTRIBUTES) {
+					if(pDup->DuplicateInfo->CheckMask(DUPLICATE_CRITERIA_ATTRIBUTES)) {
 						strKey = _T("");
-						if(pDup->DuplicateInfo.dwAttributes & FILE_ATTRIBUTE_ARCHIVE)
+						if(pDup->DuplicateInfo->getAttributes() & FILE_ATTRIBUTE_ARCHIVE)
 							strKey += _T("A");
 
-						if(pDup->DuplicateInfo.dwAttributes & FILE_ATTRIBUTE_TEMPORARY)
+						if(pDup->DuplicateInfo->getAttributes() & FILE_ATTRIBUTE_TEMPORARY)
 							strKey += _T("+T");
 
-						if(pDup->DuplicateInfo.dwAttributes & FILE_ATTRIBUTE_READONLY)
+						if(pDup->DuplicateInfo->getAttributes() & FILE_ATTRIBUTE_READONLY)
 							strKey += _T("+R");
 
-						if(pDup->DuplicateInfo.dwAttributes & FILE_ATTRIBUTE_HIDDEN)
+						if(pDup->DuplicateInfo->getAttributes() & FILE_ATTRIBUTE_HIDDEN)
 							strKey += _T("+H");
 
-						if(pDup->DuplicateInfo.dwAttributes & FILE_ATTRIBUTE_SYSTEM)
+						if(pDup->DuplicateInfo->getAttributes() & FILE_ATTRIBUTE_SYSTEM)
 							strKey += _T("+S");
 
 						m_lvwDetail.SetItemText(nItem, nCol, strKey);
@@ -1147,16 +1131,10 @@ void CDuplicateFileFinderDlg::OnLbnSelchangeLstFiles()
 
 					char szbuf[100]={0};
 					uint16_t uCRC = 0;
-					if(pDup->DuplicateInfo.nMask & DUPLICATE_CRITERIA_CONTENT) {
+					if(pDup->DuplicateInfo->CheckMask(DUPLICATE_CRITERIA_CONTENT)) {
 						strKey = _T("");
-						if( (pDup->DuplicateInfo.pCRC) && (pDup->DuplicateInfo.pCRC->GetCount()>0) ) {
-							for(INT_PTR i=0;i<pDup->DuplicateInfo.pCRC->GetCount();i++) {
-								if(!strKey.IsEmpty())
-									strKey += _T("-");
-								uCRC = pDup->DuplicateInfo.pCRC->GetAt(i);
-								_itoa_s(uCRC, szbuf, 99, 16);
-								strKey += CString(szbuf);
-							}
+						if(pDup->DuplicateInfo)  {
+							strKey = pDup->DuplicateInfo->getChecksum();
 						}
 						m_lvwDetail.SetItemText(nItem, nCol, strKey);
 						nCol++;
@@ -1179,14 +1157,14 @@ void CDuplicateFileFinderDlg::OnBnClickedBtnProcessAll()
 		CString strKey;
 		CString	strVal;
 		SHFILEOPSTRUCT so= {0};
-		struct _SFilesDuplicateInfo* pDup = nullptr;
+		SFilesDuplicateInfo* pDup = nullptr;
 		so.wFunc = FO_DELETE;
 		so.fFlags = FOF_ALLOWUNDO | FOF_NO_UI | FOF_SILENT;
 
 		while (pos) {
 			mapDuplicateFiles.GetNextAssoc(pos, strPath, (void*&)pDup);
 			if(pDup) {
-				if(pDup->DuplicateFiles->GetCount() > 0) {
+				if( (pDup->DuplicateFiles) && (pDup->DuplicateFiles->GetCount() > 0) ) {
 					pDup->DuplicateFiles->RemoveKey(strPath);
 					p2=pDup->DuplicateFiles->GetStartPosition();
 					while (p2) {
@@ -1214,7 +1192,7 @@ void CDuplicateFileFinderDlg::OnBnClickedBtnProcess()
 	CString strPath;
 	CString strFullPath;
 	SHFILEOPSTRUCT so= {0};
-	struct _SFilesDuplicateInfo* pDup = nullptr;
+	SFilesDuplicateInfo* pDup = nullptr;
 	so.wFunc = FO_DELETE;
 	so.fFlags = FOF_ALLOWUNDO | FOF_NO_UI | FOF_SILENT;
 	for(int i=m_lvwDetail.GetItemCount()-1;i>=0;i--) {
@@ -1231,10 +1209,15 @@ void CDuplicateFileFinderDlg::OnBnClickedBtnProcess()
 		if(DeleteFile(strFullPath)) {
 			m_lvwDetail.DeleteItem(i);
 
-			pDup = (struct _SFilesDuplicateInfo*)m_lstFiles.GetItemDataPtr(m_lstFiles.GetCurSel());
+			pDup = (SFilesDuplicateInfo*)m_lstFiles.GetItemDataPtr(m_lstFiles.GetCurSel());
 			if(pDup){
-				if(pDup->DuplicateFiles)
+				if(pDup->DuplicateFiles) {
 					pDup->DuplicateFiles->RemoveKey(strFullPath);
+					if(pDup->DuplicateFiles->GetCount() <= 0) {
+						delete pDup->DuplicateFiles;
+						pDup->DuplicateFiles = nullptr;
+					}
+				}
 			}
 		}
 	}
