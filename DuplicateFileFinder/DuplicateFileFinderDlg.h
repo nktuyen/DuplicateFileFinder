@@ -117,4 +117,5 @@ public:
 	CStatic m_sttKeepTips;
 	afx_msg void OnCbnSelchangeCboDuplicatedFileTypes();
 	CStatic m_sttProcessAllTips;
+	CButton m_chkTypeCriteria;
 };

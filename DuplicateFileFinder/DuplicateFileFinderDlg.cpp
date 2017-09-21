@@ -78,6 +78,7 @@ void CDuplicateFileFinderDlg::DoDataExchange(CDataExchange* pDX)
 	DDX_Control(pDX, IDC_STT_FOLDER_COUNT, m_sttFolderCount);
 	DDX_Control(pDX, IDC_STT_KEEP_FILES_TIPS, m_sttKeepTips);
 	DDX_Control(pDX, IDC_STT_PROCESS_ALL_TIPS, m_sttProcessAllTips);
+	DDX_Control(pDX, IDC_CHK_TYPE, m_chkTypeCriteria);
 }
 
 BEGIN_MESSAGE_MAP(CDuplicateFileFinderDlg, CDialogEx)
@@ -343,18 +344,23 @@ void CDuplicateFileFinderDlg::OnSize(UINT nType, int cx, int cy)
 		}
 
 		
+		if(m_chkTypeCriteria.GetSafeHwnd()) {
+			m_chkTypeCriteria.MoveWindow(rcButton);
+			rcButton.OffsetRect(0, rcButton.Height() + VERTICAL_PADDING);
+		}
+
 		if(m_chkSize.GetSafeHwnd()) {
 			m_chkSize.MoveWindow(rcButton);
 			rcButton.OffsetRect(0, rcButton.Height() + VERTICAL_PADDING);
 		}
 
-		if(m_chkAttributes.GetSafeHwnd()) {
-			m_chkAttributes.MoveWindow(rcButton);
+		if(m_chkContent.GetSafeHwnd()) {
+			m_chkContent.MoveWindow(rcButton);
 			rcButton.OffsetRect(0, rcButton.Height() + VERTICAL_PADDING);
 		}
 
-		if(m_chkContent.GetSafeHwnd()) {
-			m_chkContent.MoveWindow(rcButton);
+		if(m_chkAttributes.GetSafeHwnd()) {
+			m_chkAttributes.MoveWindow(rcButton);
 			rcButton.OffsetRect(0, rcButton.Height() + VERTICAL_PADDING);
 		}
 
@@ -604,6 +610,7 @@ void CDuplicateFileFinderDlg::InitUI()
 
 	m_chkContent.SetCheck(BST_CHECKED);
 	m_chkSize.SetCheck(BST_CHECKED);
+	m_chkTypeCriteria.SetCheck(BST_CHECKED);
 	OnBnClickedChkSize();
 
 	m_lvwFolders.InsertColumn(0, _T("Path"), LVCFMT_LEFT, 500);
@@ -656,24 +663,33 @@ void CDuplicateFileFinderDlg::ResetDetailList()
 		m_lvwDetail.DeleteColumn(0);
 	}
 
-	m_lvwDetail.InsertColumn(0, _T("Name"), LVCFMT_LEFT, 200);
-	m_lvwDetail.InsertColumn(1, _T("Parent Folder"), LVCFMT_LEFT, 300);
+	m_lvwDetail.InsertColumn(0, _T("Parent Folder"), LVCFMT_LEFT, 300);
+	m_lvwDetail.InsertColumn(1, _T("Name"), LVCFMT_LEFT, 200);
+
+	if(m_chkTypeCriteria.GetCheck() == BST_CHECKED) {
+		m_lvwDetail.InsertColumn(m_lvwDetail.GetHeaderCtrl()->GetItemCount(), _T("Type"), LVCFMT_LEFT, 120);
+	}
 
 	if(m_chkSize.GetCheck() == BST_CHECKED) {
 		m_lvwDetail.InsertColumn(m_lvwDetail.GetHeaderCtrl()->GetItemCount(), _T("Size"), LVCFMT_LEFT, 60);
 	}
+
+	if(m_chkContent.GetCheck() == BST_CHECKED) {
+		m_lvwDetail.InsertColumn(m_lvwDetail.GetHeaderCtrl()->GetItemCount(), _T("Checksum"), LVCFMT_LEFT, 120);
+	}
+
 	if(m_chkAttributes.GetCheck() == BST_CHECKED) {
 		m_lvwDetail.InsertColumn(m_lvwDetail.GetHeaderCtrl()->GetItemCount(), _T("Attributes"), LVCFMT_LEFT, 70);
 	}
-	if(m_chkContent.GetCheck() == BST_CHECKED) {
-		m_lvwDetail.InsertColumn(m_lvwDetail.GetHeaderCtrl()->GetItemCount(), _T("Checksum"), LVCFMT_LEFT, 70);
-	}
+
 	if(m_chkCreateTime.GetCheck() == BST_CHECKED) {
 		m_lvwDetail.InsertColumn(m_lvwDetail.GetHeaderCtrl()->GetItemCount(), _T("Create Time"), LVCFMT_LEFT, 100);
 	}
+
 	if(m_chkAccessTime.GetCheck() == BST_CHECKED) {
 		m_lvwDetail.InsertColumn(m_lvwDetail.GetHeaderCtrl()->GetItemCount(), _T("Last Access Time"), LVCFMT_LEFT, 100);
 	}
+
 	if(m_chkWriteTime.GetCheck() == BST_CHECKED) {
 		m_lvwDetail.InsertColumn(m_lvwDetail.GetHeaderCtrl()->GetItemCount(), _T("Last Write Time"), LVCFMT_LEFT, 100);
 	}
@@ -771,7 +787,7 @@ void CDuplicateFileFinderDlg::OnBnClickedBtnScan()
 	m_cboDuplicatedFileTypes.ResetContent();
 	m_arrFileTypes.RemoveAll();
 	DeleteDuplicateFilesTypes();
-	m_cboDuplicatedFileTypes.SetItemDataPtr(m_cboDuplicatedFileTypes.AddString(_T(" -------------------- All -------------------- ")), nullptr);
+	m_cboDuplicatedFileTypes.SetItemDataPtr(m_cboDuplicatedFileTypes.AddString(_T(" ------------------------------ All ------------------------------ ")), nullptr);
 	m_cboDuplicatedFileTypes.SetCurSel(0);
 	DeleteDuplicateInfo();
 	m_btnProcessAll.SetWindowText(_T("Process All Duplicated Items"));
@@ -850,6 +866,9 @@ void CDuplicateFileFinderDlg::OnBnClickedBtnScan()
 
 	if(m_chkWriteTime.GetCheck() == BST_CHECKED)
 		nMask |= DUPLICATE_CRITERIA_WRITE_TIME;
+
+	if(m_chkTypeCriteria.GetCheck() == BST_CHECKED)
+		nMask |= DUPLICATE_CRITERIA_TYPE;
 
 	m_pScanThread->SetDuplicateMask(nMask);
 
@@ -1191,9 +1210,19 @@ void CDuplicateFileFinderDlg::OnLbnSelchangeLstFiles()
 					m_lvwDetail.SetItemText(nItem, 1, strPath);
 					nCol++;
 
+					if(pDup->DuplicateInfo->CheckMask(DUPLICATE_CRITERIA_TYPE)) {
+						m_lvwDetail.SetItemText(nItem, nCol, pDup->DuplicateInfo->getTypeName());
+						nCol++;
+					}
+
 					if(pDup->DuplicateInfo->CheckMask(DUPLICATE_CRITERIA_SIZE)) {
 						strKey.Format(_T("%I64d"), pDup->DuplicateInfo->getSize());
 						m_lvwDetail.SetItemText(nItem, nCol, strKey);
+						nCol++;
+					}
+
+					if(pDup->DuplicateInfo->CheckMask(DUPLICATE_CRITERIA_CONTENT)) {
+						m_lvwDetail.SetItemText(nItem, nCol, pDup->DuplicateInfo->getChecksum());
 						nCol++;
 					}
 
@@ -1217,8 +1246,25 @@ void CDuplicateFileFinderDlg::OnLbnSelchangeLstFiles()
 						m_lvwDetail.SetItemText(nItem, nCol, strKey);
 						nCol++;
 					}
-					if(pDup->DuplicateInfo->CheckMask(DUPLICATE_CRITERIA_CONTENT)) {
-						m_lvwDetail.SetItemText(nItem, nCol, pDup->DuplicateInfo->getChecksum());
+
+					if(pDup->DuplicateInfo->CheckMask(DUPLICATE_CRITERIA_CREATION_TIME)) {
+						SYSTEMTIME* c = pDup->DuplicateInfo->getCreationTime();
+						strKey.Format(_T("%.4d/%.2d/%.2d-%.2d:%.2d:%.2d.%d"), c->wYear, c->wMonth, c->wDay, c->wHour, c->wMinute, c->wSecond, c->wMilliseconds);
+						m_lvwDetail.SetItemText(nItem, nCol, strKey);
+						nCol++;
+					}
+
+					if(pDup->DuplicateInfo->CheckMask(DUPLICATE_CRITERIA_ACCESS_TIME)) {
+						SYSTEMTIME* a = pDup->DuplicateInfo->getAccessTime();
+						strKey.Format(_T("%.4d/%.2d/%.2d-%.2d:%.2d:%.2d.%d"), a->wYear, a->wMonth, a->wDay, a->wHour, a->wMinute, a->wSecond, a->wMilliseconds);
+						m_lvwDetail.SetItemText(nItem, nCol, strKey);
+						nCol++;
+					}
+
+					if(pDup->DuplicateInfo->CheckMask(DUPLICATE_CRITERIA_WRITE_TIME)) {
+						SYSTEMTIME* w = pDup->DuplicateInfo->getWriteTime();
+						strKey.Format(_T("%.4d/%.2d/%.2d-%.2d:%.2d:%.2d.%d"), w->wYear, w->wMonth, w->wDay, w->wHour, w->wMinute, w->wSecond, w->wMilliseconds);
+						m_lvwDetail.SetItemText(nItem, nCol, strKey);
 						nCol++;
 					}
 				}
