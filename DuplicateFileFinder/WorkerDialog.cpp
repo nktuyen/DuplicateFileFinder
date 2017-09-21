@@ -38,6 +38,7 @@ BEGIN_MESSAGE_MAP(CWorkerDialog, CDialog)
 	ON_WM_TIMER()
 	ON_WM_ACTIVATE()
 	ON_WM_NCACTIVATE()
+	ON_BN_CLICKED(IDC_BTN_CLOSE, &CWorkerDialog::OnBnClickedBtnClose)
 END_MESSAGE_MAP()
 
 
@@ -78,40 +79,6 @@ BOOL CWorkerDialog::OnInitDialog()
 
 void CWorkerDialog::OnCancel()
 {
-	DWORD dwCode = 0;
-	GetExitCodeThread(m_pWorkerThread->m_hThread, &dwCode);
-
-	if(STILL_ACTIVE == dwCode) {
-		m_pWorkerThread->SuspendThread();
-	}
-	else {
-		CDialog::OnCancel();
-		return;
-	}
-
-	if(m_nTimerID != 0) {
-		KillTimer(m_nTimerID);
-		m_nTimerID = 0;
-	}
-
-	int nRes = AfxMessageBox(_T("Are you sure to abort current operation?"), MB_YESNO | MB_ICONQUESTION);
-	if(nRes != IDYES) {
-		
-		if(m_eType == eMARQUEE) {
-			m_nTimerID = SetTimer(reinterpret_cast<UINT_PTR>(GetSafeHwnd()), 60, nullptr);
-		}
-
-		m_pWorkerThread->ResumeThread();
-		return;
-	}
-
-	m_pWorkerThread->Finalize();
-	m_pWorkerThread->ResumeThread();
-	if(nullptr != m_pWorkerThread->m_hThread) {
-		CloseHandle(m_pWorkerThread->m_hThread);
-		m_pWorkerThread->m_hThread = nullptr;
-	}
-
 	CDialog::OnCancel();
 }
 
@@ -144,6 +111,17 @@ void CWorkerDialog::OnTimer(UINT_PTR nIDEvent)
 	}
 }
 
+BOOL CWorkerDialog::PreTranslateMessage(MSG* pMsg)
+{
+	if(pMsg->message == WM_KEYDOWN) {
+		if((pMsg->wParam == VK_ESCAPE) || (pMsg->wParam == VK_RETURN)) {
+			return TRUE;
+		}
+	}
+
+	return CDialog::PreTranslateMessage(pMsg);
+}
+
 void CWorkerDialog::OnActivate(UINT nState, CWnd* pWndOther, BOOL bMinimized)
 {
 	CDialog::OnActivate(nState, pWndOther, bMinimized);
@@ -163,4 +141,37 @@ BOOL CWorkerDialog::OnNcActivate(BOOL bActive)
 	}
 
 	return CDialog::OnNcActivate(bActive);
+}
+
+void CWorkerDialog::OnBnClickedBtnClose()
+{
+	if(m_pWorkerThread) {
+		m_pWorkerThread->SuspendThread();
+	}
+	if(m_nTimerID != 0) {
+		KillTimer(m_nTimerID);
+		m_nTimerID = 0;
+	}
+	int nRes = AfxMessageBox(_T("Are you sure to abort current operation?"), MB_YESNO | MB_ICONQUESTION);
+	if(nRes != IDYES) {
+
+		if(m_eType == eMARQUEE) {
+			m_nTimerID = SetTimer(reinterpret_cast<UINT_PTR>(GetSafeHwnd()), 60, nullptr);
+		}
+
+		if(m_pWorkerThread) {
+			m_pWorkerThread->ResumeThread();
+		}
+		return;
+	}
+
+	if(m_pWorkerThread) {
+		m_pWorkerThread->Finalize();
+		m_pWorkerThread->ResumeThread();
+
+		if(nullptr != m_pWorkerThread->m_hThread) {
+			CloseHandle(m_pWorkerThread->m_hThread);
+			m_pWorkerThread->m_hThread = nullptr;
+		}
+	}
 }

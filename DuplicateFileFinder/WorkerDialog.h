@@ -110,6 +110,7 @@ protected:
 	afx_msg void OnTimer(UINT_PTR nIDEvent);
 	afx_msg void OnActivate(UINT nState, CWnd* pWndOther, BOOL bMinimized);
 	afx_msg BOOL OnNcActivate(BOOL bActive);
+	virtual BOOL PreTranslateMessage(MSG* pMsg);
 private:
 	UINT_PTR m_nTimerID;
 	CString	m_strName;
@@ -127,4 +128,5 @@ public:
 	CStatic m_sttTitle;
 	CStatic m_sttMessage;
 	CProgressCtrl m_prgbProgress;
+	afx_msg void OnBnClickedBtnClose();
 };
