@@ -21,7 +21,7 @@ CFileInformation::CFileInformation(CFileInformation* pInfo /* = nullptr */)
 	else {
 		nMask = pInfo->nMask;
 		setName(pInfo->getName());
-		setPathName(pInfo->getPath());
+		setPath(pInfo->getPath());
 		setChecksum(pInfo->getChecksum(), CHECK_SUM_MAX_LEN);
 		setSize(pInfo->getSize());
 		setAttributes(pInfo->getAttributes());
@@ -34,7 +34,7 @@ CFileInformation::CFileInformation(CFileInformation* pInfo /* = nullptr */)
 
 CFileInformation::CFileInformation(LPCTSTR lpszFile, CCriticalSection* pSection, BOOL* pCondVar, UINT nMask) 
 {
-	nMask = nMask;
+	this->nMask = nMask;
 	memset(szName, 0, (NAME_MAX_LEN+1)*sizeof(TCHAR));
 	memset(szPath, 0, (PATH_MAX_LEN+1)*sizeof(TCHAR));
 	memset(szChecksum, 0, (CHECK_SUM_MAX_LEN+1)*sizeof(TCHAR));
@@ -87,7 +87,7 @@ void CFileInformation::setMask(UINT nMask)
 	this->nMask = nMask;
 }
 
-BOOL CFileInformation::CheckMask(UINT nMas)
+BOOL CFileInformation::CheckMask(UINT nMask)
 {
 	return (this->nMask & nMask);
 }
@@ -107,7 +107,7 @@ void CFileInformation::setPathName(LPCTSTR lpszFullPathName)
 		if(0 == err) {
 			_tcscat_s(szPath, PATH_MAX_LEN, zDrive);
 			_tcscat_s(szPath, PATH_MAX_LEN, zDir);
-			_tcscat_s(szName, NAME_MAX_LEN, szName);
+			_tcscat_s(szName, NAME_MAX_LEN, zTitle);
 			_tcscat_s(szName, NAME_MAX_LEN, zExt);
 		}
 	}

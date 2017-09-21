@@ -43,6 +43,7 @@ protected:
 	BOOL ReadyToScan();
 	void ResetDetailList();
 	void DeleteDuplicateInfo();
+	void DeleteDuplicateFilesTypes();
 	afx_msg void OnDropFiles(HDROP hDropInfo);
 	DECLARE_MESSAGE_MAP()
 public:
@@ -106,6 +107,7 @@ public:
 	CMapStringToString m_arrFileTypes;
 	CStatic m_sttFolderCount;
 	CMapStringToPtr mapDuplicateFiles;
+	CMapStringToPtr	mapDuplicateFilesTypes;
 	afx_msg void OnLbnSelchangeLstFiles();
 	afx_msg void OnBnClickedBtnProcessAll();
 	afx_msg void OnBnClickedBtnProcess();
@@ -113,4 +115,5 @@ public:
 	afx_msg void OnNMClickLvwDetail(NMHDR *pNMHDR, LRESULT *pResult);
 	afx_msg void OnLvnItemchangedLvwDetail(NMHDR *pNMHDR, LRESULT *pResult);
 	CStatic m_sttKeepTips;
+	afx_msg void OnCbnSelchangeCboDuplicatedFileTypes();
 };

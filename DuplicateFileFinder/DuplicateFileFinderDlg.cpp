@@ -107,6 +107,7 @@ BEGIN_MESSAGE_MAP(CDuplicateFileFinderDlg, CDialogEx)
 	ON_NOTIFY(NM_DBLCLK, IDC_LVW_DETAIL, &CDuplicateFileFinderDlg::OnNMDblclkLvwDetail)
 	ON_NOTIFY(NM_CLICK, IDC_LVW_DETAIL, &CDuplicateFileFinderDlg::OnNMClickLvwDetail)
 	ON_NOTIFY(LVN_ITEMCHANGED, IDC_LVW_DETAIL, &CDuplicateFileFinderDlg::OnLvnItemchangedLvwDetail)
+	ON_CBN_SELCHANGE(IDC_CBO_DUPLICATED_FILE_TYPES, &CDuplicateFileFinderDlg::OnCbnSelchangeCboDuplicatedFileTypes)
 END_MESSAGE_MAP()
 
 
@@ -127,6 +128,7 @@ BOOL CDuplicateFileFinderDlg::OnInitDialog()
 void CDuplicateFileFinderDlg::OnDestroy()
 {
 	DeleteDuplicateInfo();
+	DeleteDuplicateFilesTypes();
 	delete m_pScanThread;
 	delete m_pWorkerDlg;
 	CDialogEx::OnDestroy();
@@ -729,6 +731,23 @@ void CDuplicateFileFinderDlg::OnBnClickedChkWtime()
 	ResetDetailList();
 }
 
+void CDuplicateFileFinderDlg::DeleteDuplicateFilesTypes()
+{
+	if(mapDuplicateFilesTypes.GetCount() > 0) {
+		POSITION pos = mapDuplicateFilesTypes.GetStartPosition();
+		CString	strTypeName;
+		CMapStringToPtr* pDuplicateFiles = nullptr;
+
+		while (pos) {
+			mapDuplicateFilesTypes.GetNextAssoc(pos, strTypeName, (void*&)pDuplicateFiles);
+			if(pDuplicateFiles != nullptr) {
+				delete pDuplicateFiles;
+				pDuplicateFiles = nullptr;
+			}
+		}
+		mapDuplicateFilesTypes.RemoveAll();
+	}
+}
 
 void CDuplicateFileFinderDlg::OnBnClickedBtnScan()
 {
@@ -739,6 +758,7 @@ void CDuplicateFileFinderDlg::OnBnClickedBtnScan()
 	m_lvwDetail.DeleteAllItems();
 	m_cboDuplicatedFileTypes.ResetContent();
 	m_arrFileTypes.RemoveAll();
+	DeleteDuplicateFilesTypes();
 	m_cboDuplicatedFileTypes.SetItemDataPtr(m_cboDuplicatedFileTypes.AddString(_T(" -------------------- All -------------------- ")), nullptr);
 	m_cboDuplicatedFileTypes.SetCurSel(0);
 	DeleteDuplicateInfo();
@@ -991,15 +1011,67 @@ LRESULT CDuplicateFileFinderDlg::OnScanThreadMessage(WPARAM wparam, LPARAM lPara
 	SFilesDuplicateInfo* pDup = (SFilesDuplicateInfo*)lParam;
 	if(pDup != nullptr) {
 		CString	strDuplicateID;
+		CString strTypeName;
 		CString	strTemp;
 		int nLow, nHi;
-		strDuplicateID.Format(_T("%x - %x - %s"), reinterpret_cast<DWORD_PTR>(pDup), reinterpret_cast<DWORD_PTR>(pDup->DuplicateInfo), pDup->DuplicateInfo->getTypeName());
+
+		strDuplicateID.Format(_T("%x:%x"), reinterpret_cast<DWORD_PTR>(pDup), reinterpret_cast<DWORD_PTR>(pDup->DuplicateInfo));
+		strTypeName = pDup->DuplicateInfo->getTypeName();
+
+		if(pDup->DuplicateInfo->CheckMask(DUPLICATE_CRITERIA_SIZE)) {
+			strTemp.Format(_T(":%I64d"), pDup->DuplicateInfo->getSize());
+			strDuplicateID += strTemp;
+		}
+
+		if(pDup->DuplicateInfo->CheckMask(DUPLICATE_CRITERIA_ATTRIBUTES)) {
+			strTemp.Format(_T(":%d"), pDup->DuplicateInfo->getAttributes());
+			strDuplicateID += strTemp;
+		}
+
+		if(pDup->DuplicateInfo->CheckMask(DUPLICATE_CRITERIA_CONTENT)) {
+			strDuplicateID +=  _T(":");
+			strDuplicateID += pDup->DuplicateInfo->getChecksum();
+		}
+
+		if(pDup->DuplicateInfo->CheckMask(DUPLICATE_CRITERIA_CREATION_TIME)) {
+			SYSTEMTIME* c = pDup->DuplicateInfo->getCreationTime();
+			strTemp.Format(_T(":%.4d%.2d%.2d%.2d%.2d%.2d%d"), c->wYear, c->wMonth, c->wDay, c->wHour, c->wMinute, c->wSecond, c->wMilliseconds);
+			strDuplicateID += strTemp;
+		}
+
+		if(pDup->DuplicateInfo->CheckMask(DUPLICATE_CRITERIA_ACCESS_TIME)) {
+			SYSTEMTIME* a = pDup->DuplicateInfo->getCreationTime();
+			strTemp.Format(_T(":%.4d%.2d%.2d%.2d%.2d%.2d%d"), a->wYear, a->wMonth, a->wDay, a->wHour, a->wMinute, a->wSecond, a->wMilliseconds);
+			strDuplicateID += strTemp;
+		}
+
+		if(pDup->DuplicateInfo->CheckMask(DUPLICATE_CRITERIA_WRITE_TIME)) {
+			SYSTEMTIME* w = pDup->DuplicateInfo->getCreationTime();
+			strTemp.Format(_T(":%.4d%.2d%.2d%.2d%.2d%.2d%d"), w->wYear, w->wMonth, w->wDay, w->wHour, w->wMinute, w->wSecond, w->wMilliseconds);
+			strDuplicateID += strTemp;
+		}
+
+		if(pDup->DuplicateInfo->CheckMask(DUPLICATE_CRITERIA_NAME)) {
+			strDuplicateID += _T(":");
+			strDuplicateID += pDup->DuplicateInfo->getName();
+		}
+		strDuplicateID += _T(":");
+		strDuplicateID += strTypeName;
+
 		m_lstFiles.SetItemDataPtr(m_lstFiles.AddString(strDuplicateID), pDup);
 		m_lstFiles.GetScrollRange(SB_VERT, &nLow, &nHi);
 		m_lstFiles.SendMessage(WM_VSCROLL, MAKEWPARAM(SB_BOTTOM, 0));
-		m_arrFileTypes.SetAt(pDup->DuplicateInfo->getTypeName(), pDup->DuplicateInfo->getTypeName());
-		m_cboDuplicatedFileTypes.AddString(pDup->DuplicateInfo->getTypeName());
+		m_arrFileTypes.SetAt(strTypeName, strTypeName);
 		mapDuplicateFiles.SetAt(strDuplicateID, pDup);
+
+		CMapStringToPtr* pTypeDuplicate = nullptr;
+		mapDuplicateFilesTypes.Lookup(strTypeName, (void*&)pTypeDuplicate);
+		if(pTypeDuplicate == nullptr) {
+			pTypeDuplicate = new CMapStringToPtr();
+			mapDuplicateFilesTypes.SetAt(strTypeName, pTypeDuplicate);
+			m_cboDuplicatedFileTypes.SetItemDataPtr(m_cboDuplicatedFileTypes.AddString(strTypeName), pTypeDuplicate);
+		}
+		pTypeDuplicate->SetAt(strDuplicateID, pDup);
 
 		strTemp.Format(_T("Process All (%ld) Duplicated Items"), m_lstFiles.GetCount());
 		m_btnProcessAll.SetWindowText(strTemp);
@@ -1253,4 +1325,45 @@ void CDuplicateFileFinderDlg::OnLvnItemchangedLvwDetail(NMHDR *pNMHDR, LRESULT *
 	LPNMLISTVIEW pNMLV = reinterpret_cast<LPNMLISTVIEW>(pNMHDR);
 	// TODO: Add your control notification handler code here
 	*pResult = 0;
+}
+
+
+void CDuplicateFileFinderDlg::OnCbnSelchangeCboDuplicatedFileTypes()
+{
+	m_lstFiles.ResetContent();
+	m_lvwDetail.DeleteAllItems();
+	m_btnProcess.EnableWindow(FALSE);
+	m_btnProcessAll.SetWindowText(_T("Process All Duplicated Items"));
+	m_btnProcessAll.EnableWindow(FALSE);
+	int nSel = m_cboDuplicatedFileTypes.GetCurSel();
+	CMapStringToPtr* pDuplicateFilesByType = (CMapStringToPtr*)m_cboDuplicatedFileTypes.GetItemDataPtr(nSel);
+	POSITION pos = mapDuplicateFiles.GetStartPosition();
+	CString strDuplicateID;
+	SFilesDuplicateInfo* pDup = nullptr;
+	if(nullptr == pDuplicateFilesByType) {
+		if(mapDuplicateFiles.GetCount() > 0) {
+			pos = mapDuplicateFiles.GetStartPosition();
+			while (pos) {
+				mapDuplicateFiles.GetNextAssoc(pos, strDuplicateID, (void*&)pDup);
+				if(nullptr != pDup) {
+					m_lstFiles.SetItemDataPtr(m_lstFiles.AddString(strDuplicateID), pDup);
+				}
+			}
+		}
+	}
+	else {
+		pos = pDuplicateFilesByType->GetStartPosition();
+		while (pos) {
+			pDuplicateFilesByType->GetNextAssoc(pos, strDuplicateID, (void*&)pDup);
+			if(nullptr != pDup) {
+				m_lstFiles.SetItemDataPtr(m_lstFiles.AddString(strDuplicateID), pDup);
+			}
+		}
+
+	}
+
+	CString	strTemp;
+	strTemp.Format(_T("Process All (%ld) Duplicated Items"), m_lstFiles.GetCount());
+	m_btnProcessAll.SetWindowText(strTemp);
+	m_btnProcessAll.EnableWindow(m_lstFiles.GetCount() > 0);
 }
