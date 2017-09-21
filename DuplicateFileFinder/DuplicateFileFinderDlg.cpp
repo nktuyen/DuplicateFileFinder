@@ -77,6 +77,7 @@ void CDuplicateFileFinderDlg::DoDataExchange(CDataExchange* pDX)
 	DDX_Control(pDX, IDC_CBO_DUPLICATED_FILE_TYPES, m_cboDuplicatedFileTypes);
 	DDX_Control(pDX, IDC_STT_FOLDER_COUNT, m_sttFolderCount);
 	DDX_Control(pDX, IDC_STT_KEEP_FILES_TIPS, m_sttKeepTips);
+	DDX_Control(pDX, IDC_STT_PROCESS_ALL_TIPS, m_sttProcessAllTips);
 }
 
 BEGIN_MESSAGE_MAP(CDuplicateFileFinderDlg, CDialogEx)
@@ -497,6 +498,16 @@ void CDuplicateFileFinderDlg::OnSize(UINT nType, int cx, int cy)
 				rcTemp.top = (rcTemp.bottom - rcButton.Height());
 
 				m_btnProcessAll.MoveWindow(rcTemp);
+				
+				if(m_sttProcessAllTips.GetSafeHwnd()) {
+					rcLabel = rcTemp;
+					rcLabel.OffsetRect(rcLabel.Width()+HORIZONTAL_PADDING, 0);
+					m_sttProcessAllTips.GetWindowRect(rcTemp);
+					rcLabel.right = (rcDialog.right - HORIZONTAL_PADDING);
+					rcLabel.left = (rcLabel.right - rcTemp.Width());
+					//rcLabel.bottom = (rcLabel.top + rcTemp.Height());
+					m_sttProcessAllTips.MoveWindow(rcLabel);
+				}
 			}
 		}
 
@@ -588,6 +599,7 @@ void CDuplicateFileFinderDlg::InitUI()
 
 		m_sttPatternsTips.SetFont(&m_fntItalic);
 		m_sttKeepTips.SetFont(&m_fntItalic);
+		m_sttProcessAllTips.SetFont(&m_fntItalic);
 	}
 
 	m_chkContent.SetCheck(BST_CHECKED);
@@ -1219,36 +1231,50 @@ void CDuplicateFileFinderDlg::OnLbnSelchangeLstFiles()
 
 void CDuplicateFileFinderDlg::OnBnClickedBtnProcessAll()
 {
-	if(mapDuplicateFiles.GetCount() > 1) {
+	if(mapDuplicateFiles.GetCount() > 0) {
 		POSITION pos = mapDuplicateFiles.GetStartPosition();
 		POSITION p2 = nullptr;
-		CString strPath;
+		CString strDuplicateID;
 		CString	strCurPath;
 		CString strKey;
 		CString	strVal;
 		SHFILEOPSTRUCT so= {0};
 		SFilesDuplicateInfo* pDup = nullptr;
+		int nLen = 0;
 		so.wFunc = FO_DELETE;
-		so.fFlags = FOF_ALLOWUNDO | FOF_NO_UI | FOF_SILENT;
-
-		mapDuplicateFiles.GetNextAssoc(pos, strPath, (void*&)pDup);
+		so.fFlags = FOF_ALLOWUNDO | FOF_NO_UI | FOF_SILENT | FOF_NOCONFIRMATION | FOF_NOERRORUI;
+		TCHAR szPath[PATH_MAX_LEN+1]={0};
+		so.pFrom = szPath;
 		while (pos) {
-			mapDuplicateFiles.GetNextAssoc(pos, strPath, (void*&)pDup);
+			mapDuplicateFiles.GetNextAssoc(pos, strDuplicateID, (void*&)pDup);
 			if(pDup) {
 				if( (pDup->DuplicateFiles) && (pDup->DuplicateFiles->GetCount() > 0) ) {
-					pDup->DuplicateFiles->RemoveKey(strPath);
 					p2=pDup->DuplicateFiles->GetStartPosition();
+					pDup->DuplicateFiles->GetNextAssoc(p2, strCurPath, strVal);	//Ignore firt instance
 					while (p2) {
-						pDup->DuplicateFiles->GetNextAssoc(p2, strKey, strVal);
-						so.pFrom = strKey;
-						DeleteFile(strKey);
+						pDup->DuplicateFiles->GetNextAssoc(p2, strCurPath, strVal);
+						nLen = _stprintf_s(szPath, PATH_MAX_LEN, _T("%s"), strCurPath);
+						if((nLen > 0) && (nLen < PATH_MAX_LEN))
+							szPath[nLen+1] = 0;
+
+						SHFileOperation(&so);
 					}
 					delete pDup->DuplicateFiles;
 					pDup->DuplicateFiles = nullptr;
 				}
 			}
 		}
-		OnLbnSelchangeLstFiles();
+		
+		//
+		m_lstFiles.ResetContent();
+		m_lvwDetail.DeleteAllItems();
+		m_cboDuplicatedFileTypes.ResetContent();
+		m_arrFileTypes.RemoveAll();
+		DeleteDuplicateFilesTypes();
+		m_cboDuplicatedFileTypes.SetItemDataPtr(m_cboDuplicatedFileTypes.AddString(_T(" -------------------- All -------------------- ")), nullptr);
+		m_cboDuplicatedFileTypes.SetCurSel(0);
+		DeleteDuplicateInfo();
+		m_btnProcessAll.SetWindowText(_T("Process All Duplicated Items"));
 	}
 	m_btnProcessAll.EnableWindow(FALSE);
 }
@@ -1264,9 +1290,12 @@ void CDuplicateFileFinderDlg::OnBnClickedBtnProcess()
 	CString strPath;
 	CString strFullPath;
 	SHFILEOPSTRUCT so= {0};
+	int nLen = 0;
 	SFilesDuplicateInfo* pDup = nullptr;
 	so.wFunc = FO_DELETE;
-	so.fFlags = FOF_ALLOWUNDO | FOF_NO_UI | FOF_SILENT;
+	so.fFlags = FOF_ALLOWUNDO | FOF_NO_UI | FOF_SILENT | FOF_NOCONFIRMATION | FOF_NOERRORUI;
+	TCHAR szPath[PATH_MAX_LEN+1]={0};
+	so.pFrom = szPath;
 	for(int i=m_lvwDetail.GetItemCount()-1;i>=0;i--) {
 		if(m_lvwDetail.GetItemState(i, LVIS_SELECTED) & LVIS_SELECTED) {
 			continue;
@@ -1276,9 +1305,11 @@ void CDuplicateFileFinderDlg::OnBnClickedBtnProcess()
 		strPath = m_lvwDetail.GetItemText(i, 1);
 
 		strFullPath = strPath + strName;
-		so.pFrom = strFullPath;
+		nLen = _stprintf_s(szPath, PATH_MAX_LEN, _T("%s"), strFullPath);
+		if(((nLen > 0) && (nLen < PATH_MAX_LEN)))
+			szPath[nLen+1] = 0;
 		
-		if(DeleteFile(strFullPath)) {
+		if(SHFileOperation(&so) == 0) {
 			m_lvwDetail.DeleteItem(i);
 
 			pDup = (SFilesDuplicateInfo*)m_lstFiles.GetItemDataPtr(m_lstFiles.GetCurSel());
