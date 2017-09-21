@@ -35,6 +35,7 @@ protected:
 	afx_msg void OnDestroy();
 	afx_msg void OnCancel();
 	afx_msg void OnSize(UINT nType, int cx, int cy);
+	afx_msg void OnContextMenu(CWnd* pWnd, CPoint pos);
 	BOOL PreTranslateMessage(MSG* pMsg);
 	void InitUI();
 	BOOL AtLeastOneChecked();
@@ -53,6 +54,7 @@ public:
 	CListBox m_lstFiles;
 	CMapStringToPtr m_arrPaths;
 	CListCtrl m_lvwDetail;
+	CMenu m_Popup;
 	CListCtrl m_lvwFolders;
 	CButton m_btnScan;
 	CStatic m_sttFolderTree;
@@ -121,4 +123,9 @@ public:
 	CStatic m_sttProcessAllTips;
 	CButton m_chkTypeCriteria;
 	afx_msg void OnBnClickedChkType();
+	afx_msg void OnPopupSelectall();
+	afx_msg void OnPopupDeleteall();
+	afx_msg void OnPopupOpen();
+	afx_msg void OnPopupExplore();
+	afx_msg void OnPopupDelete();
 };

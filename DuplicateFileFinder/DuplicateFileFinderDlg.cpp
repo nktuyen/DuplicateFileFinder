@@ -15,8 +15,8 @@
 #define new DEBUG_NEW
 #endif
 
-#define MIN_WIDTH			800
-#define MIN_HEIGHT			500
+#define MIN_WIDTH			1000
+#define MIN_HEIGHT			600
 #define LEFT_PANEL_WIDTH	460
 #define HORIZONTAL_PADDING	4
 #define VERTICAL_PADDING	6
@@ -88,7 +88,9 @@ BEGIN_MESSAGE_MAP(CDuplicateFileFinderDlg, CDialogEx)
 	ON_WM_GETMINMAXINFO()
 	ON_WM_DESTROY()
 	ON_WM_SIZE()
+	ON_WM_CONTEXTMENU()
 	ON_WM_DROPFILES()
+	ON_WM_INITMENUPOPUP()
 	ON_BN_CLICKED(IDC_CHK_NAME, &CDuplicateFileFinderDlg::OnBnClickedChkName)
 	ON_BN_CLICKED(IDC_CHK_SIZE, &CDuplicateFileFinderDlg::OnBnClickedChkSize)
 	ON_BN_CLICKED(IDC_CHK_ATTRIBUTE, &CDuplicateFileFinderDlg::OnBnClickedChkAttribute)
@@ -112,6 +114,11 @@ BEGIN_MESSAGE_MAP(CDuplicateFileFinderDlg, CDialogEx)
 	ON_NOTIFY(LVN_ITEMCHANGED, IDC_LVW_DETAIL, &CDuplicateFileFinderDlg::OnLvnItemchangedLvwDetail)
 	ON_CBN_SELCHANGE(IDC_CBO_DUPLICATED_FILE_TYPES, &CDuplicateFileFinderDlg::OnCbnSelchangeCboDuplicatedFileTypes)
 	ON_BN_CLICKED(IDC_CHK_TYPE, &CDuplicateFileFinderDlg::OnBnClickedChkType)
+	ON_COMMAND(IDM_POPUP_SELECTALL, &CDuplicateFileFinderDlg::OnPopupSelectall)
+	ON_COMMAND(IDM_POPUP_DELETE_ALL, &CDuplicateFileFinderDlg::OnPopupDeleteall)
+	ON_COMMAND(IDM_POPUP_OPEN, &CDuplicateFileFinderDlg::OnPopupOpen)
+	ON_COMMAND(IDM_POPUP_EXPLORER, &CDuplicateFileFinderDlg::OnPopupExplore)
+	ON_COMMAND(IDM_POPUP_DELETE, &CDuplicateFileFinderDlg::OnPopupDelete)
 END_MESSAGE_MAP()
 
 
@@ -124,6 +131,8 @@ BOOL CDuplicateFileFinderDlg::OnInitDialog()
 
 	InitUI();
 	ShowWindow(SW_MAXIMIZE);
+
+	//m_Popup.LoadMenu(IDR_MNU_POPUP);
 
 	return TRUE;
 }
@@ -957,7 +966,7 @@ void CDuplicateFileFinderDlg::OnDropFiles(HDROP hDropInfo)
 		CString	strPath;
 		UINT nBuf = 1024;
 		CString	strMsg;
-		int nItem = -1;
+		INT_PTR nItem = -1;
 		for(UINT n=0;n<nFiles;n++) {
 			DragQueryFile(hDropInfo, n, strPath.GetBuffer(nBuf), nBuf);
 			strPath.ReleaseBuffer();
@@ -1159,6 +1168,17 @@ BOOL CDuplicateFileFinderDlg::PreTranslateMessage(MSG* pMsg)
 			return TRUE;
 	}
 
+	if(pMsg->message == WM_KEYUP) {
+		if(pMsg->hwnd == m_lvwDetail.GetSafeHwnd()) {
+			if(pMsg->wParam == 'A') {
+				SHORT shKey = GetAsyncKeyState(VK_CONTROL);
+				if(shKey & 0xFFFF) {
+					OnPopupSelectall();
+				}
+			}
+		}
+	}
+
 	return CDialogEx::PreTranslateMessage(pMsg);
 }
 
@@ -1342,7 +1362,7 @@ void CDuplicateFileFinderDlg::OnBnClickedBtnProcessAll()
 
 void CDuplicateFileFinderDlg::OnBnClickedBtnProcess()
 {
-	int nRes = AfxMessageBox(_T("Are you sure to delete un-selected files?"), MB_YESNO | MB_ICONQUESTION);
+	int nRes = AfxMessageBox(_T("Are you sure to delete selected files?"), MB_YESNO | MB_ICONQUESTION);
 	if(nRes != IDYES)
 		return;
 
@@ -1358,31 +1378,31 @@ void CDuplicateFileFinderDlg::OnBnClickedBtnProcess()
 	so.pFrom = szPath;
 	for(int i=m_lvwDetail.GetItemCount()-1;i>=0;i--) {
 		if(m_lvwDetail.GetItemState(i, LVIS_SELECTED) & LVIS_SELECTED) {
-			continue;
-		}
+			strPath = m_lvwDetail.GetItemText(i, 0);
+			strName = m_lvwDetail.GetItemText(i, 1);
 
-		strName = m_lvwDetail.GetItemText(i, 0);
-		strPath = m_lvwDetail.GetItemText(i, 1);
+			strFullPath = strPath + strName;
+			nLen = _stprintf_s(szPath, PATH_MAX_LEN, _T("%s"), strFullPath);
+			if(((nLen > 0) && (nLen < PATH_MAX_LEN)))
+				szPath[nLen+1] = 0;
 
-		strFullPath = strPath + strName;
-		nLen = _stprintf_s(szPath, PATH_MAX_LEN, _T("%s"), strFullPath);
-		if(((nLen > 0) && (nLen < PATH_MAX_LEN)))
-			szPath[nLen+1] = 0;
-		
-		if(SHFileOperation(&so) == 0) {
-			m_lvwDetail.DeleteItem(i);
+			if(SHFileOperation(&so) == 0) {
+				m_lvwDetail.DeleteItem(i);
 
-			pDup = (SFilesDuplicateInfo*)m_lstFiles.GetItemDataPtr(m_lstFiles.GetCurSel());
-			if(pDup){
-				if(pDup->DuplicateFiles) {
-					pDup->DuplicateFiles->RemoveKey(strFullPath);
-					if(pDup->DuplicateFiles->GetCount() <= 0) {
-						delete pDup->DuplicateFiles;
-						pDup->DuplicateFiles = nullptr;
+				pDup = (SFilesDuplicateInfo*)m_lstFiles.GetItemDataPtr(m_lstFiles.GetCurSel());
+				if(pDup){
+					if(pDup->DuplicateFiles) {
+						pDup->DuplicateFiles->RemoveKey(strFullPath);
+						if(pDup->DuplicateFiles->GetCount() <= 0) {
+							delete pDup->DuplicateFiles;
+							pDup->DuplicateFiles = nullptr;
+						}
 					}
 				}
 			}
 		}
+
+		
 	}
 
 	m_btnProcess.EnableWindow(FALSE);
@@ -1498,4 +1518,203 @@ void CDuplicateFileFinderDlg::OnBnClickedChkType()
 	m_sttCheckboxMessage.ShowWindow(AtLeastOneChecked()?SW_HIDE:SW_SHOW);
 
 	ResetDetailList();
+}
+
+void CDuplicateFileFinderDlg::OnPopupSelectall()
+{
+	if(m_lvwDetail.GetItemCount() > 0) {
+		UINT nMask = 0;
+		if(m_lvwDetail.GetSelectedCount() == m_lvwDetail.GetItemCount()) {
+			nMask = 0;
+		}
+		else {
+			nMask = LVIS_SELECTED;
+		}
+
+		m_lvwDetail.SetItemState(-1, nMask, LVIS_SELECTED);
+	}
+}
+
+void CDuplicateFileFinderDlg::OnPopupDeleteall()
+{
+	int nRes = AfxMessageBox(_T("Are you sure to delete all files?"), MB_YESNO | MB_ICONQUESTION);
+	if(nRes != IDYES)
+		return;
+
+	CString strName;
+	CString strPath;
+	CString strFullPath;
+	SHFILEOPSTRUCT so= {0};
+	int nLen = 0;
+	SFilesDuplicateInfo* pDup = nullptr;
+	so.wFunc = FO_DELETE;
+	so.fFlags = FOF_ALLOWUNDO | FOF_NO_UI | FOF_SILENT | FOF_NOCONFIRMATION | FOF_NOERRORUI;
+	TCHAR szPath[PATH_MAX_LEN+1]={0};
+	so.pFrom = szPath;
+	for(int i=m_lvwDetail.GetItemCount()-1;i>=0;i--) {
+		{
+			strPath = m_lvwDetail.GetItemText(i, 0);
+			strName = m_lvwDetail.GetItemText(i, 1);
+
+			strFullPath = strPath + strName;
+			nLen = _stprintf_s(szPath, PATH_MAX_LEN, _T("%s"), strFullPath);
+			if(((nLen > 0) && (nLen < PATH_MAX_LEN)))
+				szPath[nLen+1] = 0;
+
+			if(SHFileOperation(&so) == 0) {
+				m_lvwDetail.DeleteItem(i);
+
+				pDup = (SFilesDuplicateInfo*)m_lstFiles.GetItemDataPtr(m_lstFiles.GetCurSel());
+				if(pDup){
+					if(pDup->DuplicateFiles) {
+						pDup->DuplicateFiles->RemoveKey(strFullPath);
+						if(pDup->DuplicateFiles->GetCount() <= 0) {
+							delete pDup->DuplicateFiles;
+							pDup->DuplicateFiles = nullptr;
+						}
+					}
+				}
+			}
+		}
+
+
+	}
+
+	m_btnProcess.EnableWindow(FALSE);
+}
+
+
+void CDuplicateFileFinderDlg::OnPopupOpen()
+{
+	if(m_lvwDetail.GetSelectedCount() != 1)
+		return;
+
+	POSITION pos = m_lvwDetail.GetFirstSelectedItemPosition();
+	int nSel = m_lvwDetail.GetNextSelectedItem(pos);
+	if(nSel != -1) {
+		CString strName;
+		CString strPath;
+		CString strFullPath;
+		
+		strPath = m_lvwDetail.GetItemText(nSel, 0);
+		strName = m_lvwDetail.GetItemText(nSel, 1);
+
+		strFullPath = strPath + strName;
+		
+		ShellExecute(nullptr, _T("OPEN"), strFullPath, nullptr, strPath, SW_SHOWDEFAULT);
+	}
+}
+
+
+void CDuplicateFileFinderDlg::OnPopupExplore()
+{
+	if(m_lvwDetail.GetSelectedCount() != 1)
+		return;
+
+	POSITION pos = m_lvwDetail.GetFirstSelectedItemPosition();
+	int nSel = m_lvwDetail.GetNextSelectedItem(pos);
+	if(nSel != -1) {
+		CString strName;
+		CString strPath;
+		CString strFullPath;
+		CString	strCommand;
+		strPath = m_lvwDetail.GetItemText(nSel, 0);
+		strName = m_lvwDetail.GetItemText(nSel, 1);
+
+		strFullPath = strPath + strName;
+
+		strCommand.Format(_T("/select,%s"), strFullPath);
+		ShellExecute(nullptr, _T("OPEN"), _T("explorer.exe"), strCommand, strPath, SW_SHOWDEFAULT);
+	}
+}
+
+
+void CDuplicateFileFinderDlg::OnPopupDelete()
+{
+	if(m_lvwDetail.GetSelectedCount() != 1)
+		return;
+
+	POSITION pos = m_lvwDetail.GetFirstSelectedItemPosition();
+	int nSel = m_lvwDetail.GetNextSelectedItem(pos);
+	if(nSel != -1) {
+		CString strName;
+		CString strPath;
+		CString strFullPath;
+		SHFILEOPSTRUCT so= {0};
+		int nLen = 0;
+		SFilesDuplicateInfo* pDup = nullptr;
+		so.wFunc = FO_DELETE;
+		so.fFlags = FOF_ALLOWUNDO | FOF_NO_UI | FOF_SILENT | FOF_NOCONFIRMATION | FOF_NOERRORUI;
+		TCHAR szPath[PATH_MAX_LEN+1]={0};
+		so.pFrom = szPath;
+		strPath = m_lvwDetail.GetItemText(nSel, 0);
+		strName = m_lvwDetail.GetItemText(nSel, 1);
+
+		strFullPath = strPath + strName;
+		nLen = _stprintf_s(szPath, PATH_MAX_LEN, _T("%s"), strFullPath);
+		if(((nLen > 0) && (nLen < PATH_MAX_LEN)))
+			szPath[nLen+1] = 0;
+
+		if(SHFileOperation(&so) == 0) {
+			m_lvwDetail.DeleteItem(nSel);
+
+			pDup = (SFilesDuplicateInfo*)m_lstFiles.GetItemDataPtr(m_lstFiles.GetCurSel());
+			if(pDup){
+				if(pDup->DuplicateFiles) {
+					pDup->DuplicateFiles->RemoveKey(strFullPath);
+					if(pDup->DuplicateFiles->GetCount() <= 0) {
+						delete pDup->DuplicateFiles;
+						pDup->DuplicateFiles = nullptr;
+					}
+				}
+			}
+		}
+
+		m_btnProcess.EnableWindow(m_lvwDetail.GetSelectedCount() > 0);
+	}
+}
+
+
+void CDuplicateFileFinderDlg::OnContextMenu(CWnd* pWnd, CPoint pos)
+{
+	CDialogEx::OnContextMenu(pWnd, pos);
+
+	if( (pWnd == &m_lvwDetail) && (m_lvwDetail.GetItemCount() > 0) ){
+		
+		CHeaderCtrl* pHdr = m_lvwDetail.GetHeaderCtrl();
+		HDHITTESTINFO hTest={0};
+		LVHITTESTINFO vTest = {0};
+		CPoint pt = pos;
+		GetCursorPos(&pt);
+		int nTest = 0;
+		if(pHdr) {
+			GetCursorPos(&hTest.pt);
+			pHdr->ScreenToClient(&hTest.pt);
+			nTest = pHdr->HitTest(&hTest);
+			if(hTest.flags != HHT_BELOW) {
+				return;
+			}
+		}
+
+		GetCursorPos(&vTest.pt);
+		m_lvwDetail.ScreenToClient(&vTest.pt);
+		nTest = m_lvwDetail.HitTest(&vTest);
+		
+		if(m_Popup.LoadMenu(IDR_MNU_POPUP)) {
+			CMenu* Popup = m_Popup.GetSubMenu(0);
+
+			if( (vTest.flags == LVHT_NOWHERE) || (m_lvwDetail.GetSelectedCount()>1) ){
+				Popup->EnableMenuItem(IDM_POPUP_OPEN, MF_DISABLED);
+				Popup->EnableMenuItem(IDM_POPUP_EXPLORER, MF_DISABLED);
+				Popup->EnableMenuItem(IDM_POPUP_DELETE, MF_DISABLED);
+			}
+
+			if(m_lvwDetail.GetSelectedCount() == m_lvwDetail.GetItemCount()) {
+				Popup->CheckMenuItem(IDM_POPUP_SELECTALL, MF_CHECKED);
+			}
+
+			Popup->TrackPopupMenu(0, pt.x, pt.y, this);
+			m_Popup.DestroyMenu();
+		}
+	}
 }
