@@ -17,6 +17,7 @@ private:
 	SYSTEMTIME tmCreate;
 	SYSTEMTIME tmAccess;
 	SYSTEMTIME tmWrite;
+	UINT nBufferSize;
 public:
 	CFileInformation(CFileInformation* pInfo = nullptr);
 	CFileInformation(LPCTSTR lpszFile, CCriticalSection* pSection, BOOL* pCondVar, UINT nMask);
@@ -57,6 +58,8 @@ public:
 	size_t getChecksumLength();
 	LPCTSTR getTypeName();
 	void setTypeName(LPCTSTR lpszTypeName, bool bIsPath);
+	void setBufferSize(UINT nSize);
+	UINT getBufferSize();
 private:
 	void crc8PushByte(uint8_t *crc, uint8_t ch, CCriticalSection* pSection, BOOL* pCondVar);
 	uint8_t CRC(uint8_t *pcrc, uint8_t *block, uint16_t count, CCriticalSection* pSection, BOOL* pCondVar);

@@ -22,6 +22,7 @@ public:
 	void RemoveAllFilters();
 	void AddFilter(CFileFolderFilter* pFilter) { m_ExcludeFilters.SetAt(pFilter->GetCriteria(), pFilter); }
 	void SetDuplicateMask(UINT nMask) { m_nDuplicateMask = nMask; }
+	void SetBufferSize(UINT nSize) { m_nBufSize = nSize;}
 private:
 	virtual BOOL InitInstance();
 	virtual int ExitInstance();
@@ -51,6 +52,7 @@ private:
 	BOOL m_bRecursive;
 	EEnumChildFlag m_EnumFlag;
 	BOOL m_bEnumVal;
+	UINT m_nBufSize;
 	CMap<HWND, HWND, BOOL, BOOL> m_Enables;
 	CCriticalSection* m_pCriticalSection;
 	CCriticalSection* m_pOriginCriticalSection;

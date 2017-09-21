@@ -7,7 +7,6 @@
 #include "WorkerDialog.h"
 #include "CommonDef.h"
 
-#define BUFFER_SIZE	0xFA00
 
 CScanThread* CScanThread::m_sInstance = nullptr;
 
@@ -22,6 +21,7 @@ CScanThread::CScanThread(CWnd* pOwner /* = nullptr */, CWorkerDialog* pProgressD
 	m_nMessageID = nMessageID;
 	m_nDuplicateMask = (DUPLICATE_CRITERIA_CONTENT | DUPLICATE_CRITERIA_SIZE);
 	m_pCriticalSection = pCriticlSection;
+	m_nBufSize = 1024*1024;
 }
 
 CScanThread::~CScanThread()
@@ -389,10 +389,12 @@ UINT CScanThread::IsDuplicateFile(const CString& strPath, CMapStringToString* ar
 
 			if(m_nDuplicateMask & DUPLICATE_CRITERIA_CONTENT) {
 				if(pSourceInfo->getChecksumLength() <= 0) {
+					pSourceInfo->setBufferSize(m_nBufSize);
 					pSourceInfo->checkSum(strPath, m_pCriticalSection, &m_bRunning);
 					pSourceInfo->setMask(m_nDuplicateMask);	//Add DUPLICATE_CRITERIA_CONTENT mask
 				}
 				if(pDestInfo->getChecksumLength() <= 0) {
+					pDestInfo->setBufferSize(m_nBufSize);
 					pDestInfo->checkSum(strCurrentPath, m_pCriticalSection, &m_bRunning);
 					pDestInfo->setMask(m_nDuplicateMask);	//Add DUPLICATE_CRITERIA_CONTENT mask
 				}

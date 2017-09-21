@@ -2,12 +2,12 @@
 #include "FileInformation.h"
 #include "Checksum.h"
 
-#define CHECK_SUM_BUFFER_SIZE	0xA00000	//10MB
 
 CFileInformation::CFileInformation(CFileInformation* pInfo /* = nullptr */)
 {
 	if(nullptr == pInfo) {
 		nMask = 0U;
+		nBufferSize = 1024*1024;
 		memset(szName, 0, (NAME_MAX_LEN+1)*sizeof(TCHAR));
 		memset(szPath, 0, (PATH_MAX_LEN+1)*sizeof(TCHAR));
 		memset(szTypeName, 0, (TYPE_NAME_MAX_LEN+1)*sizeof(TCHAR));
@@ -22,6 +22,7 @@ CFileInformation::CFileInformation(CFileInformation* pInfo /* = nullptr */)
 	else {
 		nMask = pInfo->nMask;
 		nCheckumLen = pInfo->nCheckumLen;
+		nBufferSize = pInfo->nBufferSize;
 		setName(pInfo->getName());
 		setPath(pInfo->getPath());
 		setChecksum(pInfo->getChecksum(), CHECK_SUM_MAX_LEN);
@@ -225,7 +226,7 @@ size_t CFileInformation::checkSum(HANDLE hFile, __int64 iSize, CCriticalSection*
 	uint8_t uCRC = 0;
 	size_t nCRC = 0;
 	size_t nGrow = 1;
-	char *szBuffer= new char[CHECK_SUM_BUFFER_SIZE+1];;
+	char *szBuffer= new char[nBufferSize+1];;
 	DWORD dwNumBytesRead = 0;
 	CSingleLock locker(pSection);
 	memset(szPath, 0, (PATH_MAX_LEN+1)*sizeof(TCHAR));
@@ -246,8 +247,8 @@ size_t CFileInformation::checkSum(HANDLE hFile, __int64 iSize, CCriticalSection*
 			locker.Unlock();
 		}
 
-		memset(szBuffer, 0, (CHECK_SUM_BUFFER_SIZE+1)*sizeof(char));
-		if(!ReadFile(hFile, szBuffer, CHECK_SUM_BUFFER_SIZE, &dwNumBytesRead, nullptr)) {
+		memset(szBuffer, 0, (nBufferSize+1)*sizeof(char));
+		if(!ReadFile(hFile, szBuffer, nBufferSize, &dwNumBytesRead, nullptr)) {
 			break;
 		}
 
@@ -511,4 +512,15 @@ LPCTSTR CFileInformation::getTypeName()
 size_t CFileInformation::getChecksumLength()
 {
 	return nCheckumLen;
+}
+
+void CFileInformation::setBufferSize(UINT nSize)
+{
+	nBufferSize = nSize;
+}
+
+
+UINT CFileInformation::getBufferSize()
+{
+	return nBufferSize;
 }

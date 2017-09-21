@@ -128,4 +128,6 @@ public:
 	afx_msg void OnPopupOpen();
 	afx_msg void OnPopupExplore();
 	afx_msg void OnPopupDelete();
+	CStatic m_sttScanBuffer;
+	CComboBox m_cboScanBuffer;
 };

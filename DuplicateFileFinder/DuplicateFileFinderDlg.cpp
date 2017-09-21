@@ -80,6 +80,8 @@ void CDuplicateFileFinderDlg::DoDataExchange(CDataExchange* pDX)
 	DDX_Control(pDX, IDC_STT_KEEP_FILES_TIPS, m_sttKeepTips);
 	DDX_Control(pDX, IDC_STT_PROCESS_ALL_TIPS, m_sttProcessAllTips);
 	DDX_Control(pDX, IDC_CHK_TYPE, m_chkTypeCriteria);
+	DDX_Control(pDX, IDC_STT_SCAN_BUFFER, m_sttScanBuffer);
+	DDX_Control(pDX, IDC_CBO_SCAN_BUFFER, m_cboScanBuffer);
 }
 
 BEGIN_MESSAGE_MAP(CDuplicateFileFinderDlg, CDialogEx)
@@ -200,7 +202,7 @@ void CDuplicateFileFinderDlg::OnSize(UINT nType, int cx, int cy)
 		CRect	rcExcludeSize;
 		CRect	rcExcludeAttr;
 		CRect	rcFolderStatus;
-
+		CRect	rcCombo;
 		GetClientRect(rcDialog);
 		rcDialog.NormalizeRect();
 		//rcDialog.DeflateRect(HORIZONTAL_PADDING, VERTICAL_PADDING, HORIZONTAL_PADDING, VERTICAL_PADDING);
@@ -414,14 +416,34 @@ void CDuplicateFileFinderDlg::OnSize(UINT nType, int cx, int cy)
 			rcButton.left = (rcButton.right - rcTemp.Width());
 			rcScan = rcButton;
 			m_btnScan.MoveWindow(rcScan);
-			rcScan.OffsetRect(0, rcScan.Height()+VERTICAL_PADDING);
 		}
 
 		if(m_chkScanRecursive.GetSafeHwnd()) {
+			CRect rcRecursive = rcScan;
 			m_chkScanRecursive.GetWindowRect(rcTemp);
-			rcScan.right = (rcScan.left + rcTemp.Width());
-			rcScan.bottom = (rcScan.top + rcTemp.Height());
-			m_chkScanRecursive.MoveWindow(rcScan);
+			rcRecursive.right = (rcRecursive.left + rcTemp.Width());
+			rcRecursive.top = (rcScan.bottom + VERTICAL_PADDING);
+			rcRecursive.bottom = (rcRecursive.top + rcTemp.Height());
+			m_chkScanRecursive.MoveWindow(rcRecursive);
+		}
+
+		if(m_cboScanBuffer.GetSafeHwnd()) {
+			m_cboScanBuffer.GetWindowRect(rcTemp);
+			
+			rcCombo.left = rcScan.left;
+			rcCombo.right = (rcCombo.left + rcTemp.Width());
+			rcCombo.bottom = (rcScan.top - VERTICAL_PADDING);
+			rcCombo.top = (rcCombo.bottom - rcTemp.Height());
+			m_cboScanBuffer.MoveWindow(rcCombo);
+		}
+
+		if(m_sttScanBuffer.GetSafeHwnd()) {
+			m_sttScanBuffer.GetWindowRect(rcTemp);
+			rcLabel.left = rcCombo.left;
+			rcLabel.right = (rcLabel.left + rcTemp.Width());
+			rcLabel.bottom = (rcCombo.top - VERTICAL_PADDING);
+			rcLabel.top = (rcLabel.bottom - rcTemp.Height());
+			m_sttScanBuffer.MoveWindow(rcLabel);
 		}
 
 		if(m_sttFolderTree.GetSafeHwnd()) {
@@ -645,6 +667,28 @@ void CDuplicateFileFinderDlg::InitUI()
 	m_cbSizeUnit.SetCurSel(eByte);
 	SetDlgItemInt(IDC_EDT_EXCLUDE_SIZE, 0);
 
+	m_cboScanBuffer.SetItemDataPtr(m_cboScanBuffer.AddString(_T("1 KB")), reinterpret_cast<void*>(1024));
+	m_cboScanBuffer.SetItemDataPtr(m_cboScanBuffer.AddString(_T("10 KB")), reinterpret_cast<void*>(1024*10));
+	m_cboScanBuffer.SetItemDataPtr(m_cboScanBuffer.AddString(_T("20 KB")), reinterpret_cast<void*>(1024*20));
+	m_cboScanBuffer.SetItemDataPtr(m_cboScanBuffer.AddString(_T("50 KB")), reinterpret_cast<void*>(1024*50));
+	m_cboScanBuffer.SetItemDataPtr(m_cboScanBuffer.AddString(_T("100 KB")), reinterpret_cast<void*>(1024*100));
+	m_cboScanBuffer.SetItemDataPtr(m_cboScanBuffer.AddString(_T("200 KB")), reinterpret_cast<void*>(1024*200));
+	m_cboScanBuffer.SetItemDataPtr(m_cboScanBuffer.AddString(_T("500 KB")), reinterpret_cast<void*>(1024*500));
+	m_cboScanBuffer.SetItemDataPtr(m_cboScanBuffer.AddString(_T("1 MB")), reinterpret_cast<void*>(1024*1024));
+	m_cboScanBuffer.SetItemDataPtr(m_cboScanBuffer.AddString(_T("2 MB")), reinterpret_cast<void*>(1024*1024*2));
+	m_cboScanBuffer.SetItemDataPtr(m_cboScanBuffer.AddString(_T("3 MB")), reinterpret_cast<void*>(1024*1024*3));
+	m_cboScanBuffer.SetItemDataPtr(m_cboScanBuffer.AddString(_T("5 MB")), reinterpret_cast<void*>(1024*1024*5));
+	m_cboScanBuffer.SetItemDataPtr(m_cboScanBuffer.AddString(_T("10 MB")), reinterpret_cast<void*>(1024*1024*10));
+	m_cboScanBuffer.SetItemDataPtr(m_cboScanBuffer.AddString(_T("20 MB")), reinterpret_cast<void*>(1024*1024*20));
+	m_cboScanBuffer.SetItemDataPtr(m_cboScanBuffer.AddString(_T("30 MB")), reinterpret_cast<void*>(1024*1024*30));
+	m_cboScanBuffer.SetItemDataPtr(m_cboScanBuffer.AddString(_T("50 MB")), reinterpret_cast<void*>(1024*1024*50));
+	m_cboScanBuffer.SetItemDataPtr(m_cboScanBuffer.AddString(_T("100 MB")), reinterpret_cast<void*>(1024*1024*100));
+	m_cboScanBuffer.SetItemDataPtr(m_cboScanBuffer.AddString(_T("200 MB")), reinterpret_cast<void*>(1024*1024*200));
+	m_cboScanBuffer.SetItemDataPtr(m_cboScanBuffer.AddString(_T("300 MB")), reinterpret_cast<void*>(1024*1024*300));
+	m_cboScanBuffer.SetItemDataPtr(m_cboScanBuffer.AddString(_T("500 MB")), reinterpret_cast<void*>(1024*1024*500));
+	m_cboScanBuffer.SetItemDataPtr(m_cboScanBuffer.AddString(_T("1 GB")), reinterpret_cast<void*>(1024*1024*1024));
+	m_cboScanBuffer.SelectString(-1, _T("10 MB"));
+
 	m_chkScanRecursive.SetCheck(BST_CHECKED);
 
 	AddFolder(_T(""));
@@ -815,6 +859,8 @@ void CDuplicateFileFinderDlg::OnBnClickedBtnScan()
 	CString	strPath;
 	CStringArray arrPaths;
 	INT_PTR nItem = -1;
+	UINT nBuSize = 1024*1024;
+
 	while (pos)
 	{
 		m_arrPaths.GetNextAssoc(pos, strPath, reinterpret_cast<void*&>(nItem));
@@ -897,6 +943,12 @@ void CDuplicateFileFinderDlg::OnBnClickedBtnScan()
 	}
 	if(m_pWorkerDlg->GetSafeHwnd()) 
 		m_pWorkerDlg->DestroyWindow();
+
+	void* pSize = m_cboScanBuffer.GetItemDataPtr(m_cboScanBuffer.GetCurSel());
+	if(pSize != nullptr)
+		nBuSize = reinterpret_cast<UINT>(pSize);
+	
+	m_pScanThread->SetBufferSize(nBuSize);
 
 	m_pWorkerDlg->Create(CWorkerDialog::IDD, this);
 	m_pWorkerDlg->ShowWindow(SW_SHOW);
@@ -1412,8 +1464,8 @@ void CDuplicateFileFinderDlg::OnNMDblclkLvwDetail(NMHDR *pNMHDR, LRESULT *pResul
 {
 	LPNMITEMACTIVATE pNMItemActivate = reinterpret_cast<LPNMITEMACTIVATE>(pNMHDR);
 	if(pNMItemActivate) {
-		CString strName = m_lvwDetail.GetItemText(pNMItemActivate->iItem, 0);
-		CString strPath = m_lvwDetail.GetItemText(pNMItemActivate->iItem, 1);
+		CString strPath = m_lvwDetail.GetItemText(pNMItemActivate->iItem, 0);
+		CString strName = m_lvwDetail.GetItemText(pNMItemActivate->iItem, 1);
 		CString strFullPath;
 
 		strFullPath = strPath + strName;
