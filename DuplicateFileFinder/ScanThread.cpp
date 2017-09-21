@@ -11,7 +11,7 @@
 
 CScanThread* CScanThread::m_sInstance = nullptr;
 
-CScanThread::CScanThread(CWnd* pOwner /* = nullptr */, CWorkerDialog* pProgressDlg /* = nullptr */, UINT nMessageID /* = 0U */)
+CScanThread::CScanThread(CWnd* pOwner /* = nullptr */, CWorkerDialog* pProgressDlg /* = nullptr */, UINT nMessageID /* = 0U */, CCriticalSection* pCriticlSection /* = nullptr */)
 {
 	CScanThread::m_sInstance = this;
 	m_pOwnerWnd = pOwner;
@@ -21,6 +21,7 @@ CScanThread::CScanThread(CWnd* pOwner /* = nullptr */, CWorkerDialog* pProgressD
 	m_bAutoDelete = FALSE;
 	m_nMessageID = nMessageID;
 	m_nDuplicateMask = (DUPLICATE_CRITERIA_CONTENT | DUPLICATE_CRITERIA_SIZE);
+	m_pCriticalSection = pCriticlSection;
 }
 
 CScanThread::~CScanThread()
@@ -34,9 +35,24 @@ BOOL CScanThread::InitInstance()
 	return TRUE;
 }
 
+void CScanThread::DisableLock()
+{
+	CSingleLock locker(m_pCriticalSection);
+	locker.Lock();
+	m_pOriginCriticalSection = m_pCriticalSection;
+	m_pCriticalSection = nullptr;
+	locker.Unlock();
+}
+
+void CScanThread::EnableLock()
+{
+	m_pCriticalSection = m_pOriginCriticalSection;
+	m_pOriginCriticalSection = nullptr;
+}
+
 int CScanThread::ExitInstance()
 {
-	CSingleLock locker(&m_CriticalSection);
+	CSingleLock locker(m_pCriticalSection);
 	locker.Lock();
 	m_bRunning = FALSE;
 	CloseHandle(m_hThread);
@@ -59,7 +75,7 @@ int CScanThread::ExitInstance()
 
 void CScanThread::Finalize()
 {
-	CSingleLock locker(&m_CriticalSection);
+	CSingleLock locker(m_pCriticalSection);
 	locker.Lock();
 	m_bRunning = FALSE;
 	locker.Unlock();
@@ -85,7 +101,7 @@ void CScanThread::RemoveAllScannedFiles()
 
 BOOL CScanThread::Initialize(const CStringArray& strPath, BOOL bRecursive)
 {
-	CSingleLock locker(&m_CriticalSection);
+	CSingleLock locker(m_pCriticalSection);
 	locker.Lock();
 	m_bRecursive = bRecursive;
 	m_arrPaths.Copy(strPath);
@@ -119,7 +135,8 @@ int CScanThread::Run()
 	CString	strCurrentPath;
 	CString	strMessage;
 	__int64 iTotalSize = 0;
-	CSingleLock locker(&m_CriticalSection);
+	__int64 iComparedSize = 0;
+	CSingleLock locker(m_pCriticalSection);
 	for(INT_PTR i=0;i<m_arrPaths.GetCount();i++)
 	{
 		strCurrentPath = m_arrPaths.GetAt(i);
@@ -140,7 +157,7 @@ int CScanThread::Run()
 			m_pProgressDlg->SetProgressType(CWorkerDialog::eFILL);
 			m_pProgressDlg->SetProgressValue(0);
 			m_pProgressDlg->SetProgressRange(0, 100);
-			m_pProgressDlg->SetJobName(_T("Analyze Files..."));
+			m_pProgressDlg->SetJobName(_T("Comparing Files..."));
 		}
 
 		POSITION pos = m_arrScannedFiles.GetStartPosition();
@@ -163,6 +180,10 @@ int CScanThread::Run()
 			m_arrFilesToCheck.RemoveKey(strCurrentPath);
 			pDuplicateInfo = new SFilesDuplicateInfo();
 			pDuplicateInfo->DuplicateFiles = new CMapStringToString();
+			if(m_pProgressDlg) {
+				m_pProgressDlg->SetMessageContent(strCurrentPath);
+			}
+
 			if(IsDuplicateFile(strCurrentPath, pDuplicateInfo->DuplicateFiles, pInfo)) {
 				pDuplicateInfo->DuplicateFiles->SetAt(strCurrentPath, strCurrentPath);
 				if(m_pOwnerWnd && m_pOwnerWnd->GetSafeHwnd()) {
@@ -179,7 +200,10 @@ int CScanThread::Run()
 			pDuplicateInfo = nullptr;
 			//
 			nCurFile++;
+			iComparedSize += pInfo->getSize();
 			if(m_pProgressDlg) {
+				strMessage.Format(_T("Current File (%I64d/%I64d): "), static_cast<__int64>(nCurFile), static_cast<__int64>(nTotalFiles));
+				m_pProgressDlg->SetMessageTitle(strMessage);
 				m_pProgressDlg->SetProgressValue(static_cast<int>( static_cast<double>(nCurFile) / static_cast<double>(nTotalFiles) * 100.0 ));
 			}
 		}
@@ -258,7 +282,7 @@ BOOL CScanThread::IsExcludeFile(const CString& strPath)
 	EFileFolderFilterCriteria eCriteria;
 	CFileFolderFilter* pFilter = nullptr;
 	UINT nCount = 0;
-	CSingleLock locker(&m_CriticalSection);
+	CSingleLock locker(m_pCriticalSection);
 
 	while (pos)
 	{
@@ -285,7 +309,7 @@ UINT CScanThread::IsDuplicateFile(const CString& strPath, CMapStringToString* ar
 {
 	UINT nDup = 0U;
 
-	CSingleLock locker(&m_CriticalSection);
+	CSingleLock locker(m_pCriticalSection);
 	if(m_arrFilesToCheck.GetCount() > 0) {
 		POSITION pos = m_arrFilesToCheck.GetStartPosition();
 		CString	strCurrentPath;
@@ -364,6 +388,15 @@ UINT CScanThread::IsDuplicateFile(const CString& strPath, CMapStringToString* ar
 			}
 
 			if(m_nDuplicateMask & DUPLICATE_CRITERIA_CONTENT) {
+				if(pSourceInfo->getChecksumLength() <= 0) {
+					pSourceInfo->checkSum(strPath, m_pCriticalSection, &m_bRunning);
+					pSourceInfo->setMask(m_nDuplicateMask);	//Add DUPLICATE_CRITERIA_CONTENT mask
+				}
+				if(pDestInfo->getChecksumLength() <= 0) {
+					pDestInfo->checkSum(strCurrentPath, m_pCriticalSection, &m_bRunning);
+					pDestInfo->setMask(m_nDuplicateMask);	//Add DUPLICATE_CRITERIA_CONTENT mask
+				}
+
 				if(_tcsicmp(pSourceInfo->getChecksum(), pDestInfo->getChecksum()) != 0)
 					continue;
 				else
@@ -394,12 +427,13 @@ void CScanThread::WalkDir(const CString& strPath, BOOL bRecursive, __int64& iTot
 	if(strOriginPath.Right(1) != '\\') {
 		strOriginPath.Append(_T("\\"));
 	}
-
+	CString	strMessage;
 	strPattern = strOriginPath + _T("*");
 	LARGE_INTEGER li={0};
 	HANDLE hSearch = ::FindFirstFile(strPattern, &fd);
 	bool bLocked = false;
-	CSingleLock locker(&m_CriticalSection);
+	CSingleLock locker(m_pCriticalSection);
+	UINT nDuplicateMask = (m_nDuplicateMask &~DUPLICATE_CRITERIA_CONTENT);
 	if(hSearch != INVALID_HANDLE_VALUE) {
 		do 
 		{
@@ -424,16 +458,20 @@ void CScanThread::WalkDir(const CString& strPath, BOOL bRecursive, __int64& iTot
 			}
 			else {
 				strFullPath = strOriginPath + strFileName;
-				if(m_pProgressDlg)
-					m_pProgressDlg->SetMessageContent(strFullPath);
 
 				if(!IsExcludeFile(strFullPath)){
 					if(m_pOwnerWnd && m_pOwnerWnd->GetSafeHwnd()) {
-						m_arrScannedFiles.SetAt(strFullPath, new CFileInformation(strFullPath,  &m_CriticalSection, &m_bRunning, m_nDuplicateMask));
+						m_arrScannedFiles.SetAt(strFullPath, new CFileInformation(strFullPath,  m_pCriticalSection, &m_bRunning, nDuplicateMask));
 						m_arrFilesToCheck.SetAt(strFullPath, strFullPath);
 						li.LowPart = fd.nFileSizeLow;
 						li.HighPart = fd.nFileSizeHigh;
 						iTotalSize += static_cast<__int64>(li.QuadPart);
+					}
+
+					if(m_pProgressDlg) {
+						strMessage.Format(_T("Current File (%I64d): "), static_cast<__int64>(m_arrScannedFiles.GetCount()));
+						m_pProgressDlg->SetMessageTitle(strMessage);
+						m_pProgressDlg->SetMessageContent(strFullPath);
 					}
 				}
 			}
@@ -454,7 +492,7 @@ void CScanThread::RemoveIdenticalFiles(CMapStringToString* pIdenticalFiles)
 	POSITION pos = pIdenticalFiles->GetStartPosition();
 	CString	strCurPath;
 	CString	strTemp;
-	CSingleLock locker(&m_CriticalSection);
+	CSingleLock locker(m_pCriticalSection);
 
 	while (pos) {
 		locker.Lock();

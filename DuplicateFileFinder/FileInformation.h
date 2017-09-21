@@ -12,6 +12,7 @@ private:
 	TCHAR szChecksum[CHECK_SUM_MAX_LEN+1];
 	TCHAR szTypeName[TYPE_NAME_MAX_LEN+1];
 	__int64 iSize;
+	size_t nCheckumLen;
 	DWORD dwAttributes;
 	SYSTEMTIME tmCreate;
 	SYSTEMTIME tmAccess;
@@ -28,9 +29,9 @@ public:
 	LPCTSTR getName();
 	void setPath(LPCTSTR lpszPath);
 	LPCTSTR getPath();
-	void checkSum(LPCTSTR lpszFile, CCriticalSection* pSection, BOOL* pCondVar);
-	void checkSum(HANDLE hFile, CCriticalSection* pSection, BOOL* pCondVar);
-	void checkSum(HANDLE hFile, __int64 iSzie, CCriticalSection* pSection, BOOL* pCondVar);
+	size_t checkSum(LPCTSTR lpszFile, CCriticalSection* pSection, BOOL* pCondVar);
+	size_t checkSum(HANDLE hFile, CCriticalSection* pSection, BOOL* pCondVar);
+	size_t checkSum(HANDLE hFile, __int64 iSzie, CCriticalSection* pSection, BOOL* pCondVar);
 	void setChecksum(LPCTSTR lpszChecksum, size_t len);
 	LPCTSTR getChecksum();
 	void setSize(LPCTSTR lpszFile);
@@ -53,6 +54,7 @@ public:
 	SYSTEMTIME* getAccessTime();
 	SYSTEMTIME* getWriteTime() ;
 	BOOL compareTime(SYSTEMTIME* p1, SYSTEMTIME* p2);
+	size_t getChecksumLength();
 	LPCTSTR getTypeName();
 	void setTypeName(LPCTSTR lpszTypeName, bool bIsPath);
 private:

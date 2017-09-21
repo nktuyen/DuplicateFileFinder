@@ -2,7 +2,7 @@
 #include "FileInformation.h"
 #include "Checksum.h"
 
-#define CHECK_SUM_BUFFER_SIZE	0xFC00	//63kb
+#define CHECK_SUM_BUFFER_SIZE	0xA00000	//10MB
 
 CFileInformation::CFileInformation(CFileInformation* pInfo /* = nullptr */)
 {
@@ -17,9 +17,11 @@ CFileInformation::CFileInformation(CFileInformation* pInfo /* = nullptr */)
 		memset(&tmCreate, 0, sizeof(SYSTEMTIME));
 		memset(&tmAccess, 0, sizeof(SYSTEMTIME));
 		memset(&tmWrite, 0, sizeof(SYSTEMTIME));
+		nCheckumLen = 0;
 	}
 	else {
 		nMask = pInfo->nMask;
+		nCheckumLen = pInfo->nCheckumLen;
 		setName(pInfo->getName());
 		setPath(pInfo->getPath());
 		setChecksum(pInfo->getChecksum(), CHECK_SUM_MAX_LEN);
@@ -41,6 +43,7 @@ CFileInformation::CFileInformation(LPCTSTR lpszFile, CCriticalSection* pSection,
 	memset(szTypeName, 0, (TYPE_NAME_MAX_LEN+1)*sizeof(TCHAR));
 	iSize = 0;
 	dwAttributes = 0;
+	nCheckumLen = 0;
 	memset(&tmCreate, 0, sizeof(SYSTEMTIME));
 	memset(&tmAccess, 0, sizeof(SYSTEMTIME));
 	memset(&tmWrite, 0, sizeof(SYSTEMTIME));
@@ -182,26 +185,47 @@ uint8_t CFileInformation::CRC(uint8_t *pcrc, uint8_t *block, uint16_t count, CCr
 	return crc;
 }
 
-void CFileInformation::checkSum(LPCTSTR lpszFile, CCriticalSection* pSection, BOOL* pCondVar)
+size_t CFileInformation::checkSum(LPCTSTR lpszFile, CCriticalSection* pSection, BOOL* pCondVar)
 {
+	size_t nLen = 0;
 
+	HANDLE hFile = CreateFile(lpszFile, GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING, 0, nullptr);
+	if(hFile != INVALID_HANDLE_VALUE) {
+		nLen = checkSum(hFile, pSection, pCondVar);
+		CloseHandle(hFile);
+		hFile = INVALID_HANDLE_VALUE;
+	}
+
+	return nLen;
 }
 
-void CFileInformation::checkSum(HANDLE hFile, CCriticalSection* pSection, BOOL* pCondVar)
+size_t CFileInformation::checkSum(HANDLE hFile, CCriticalSection* pSection, BOOL* pCondVar)
 {
+	size_t nLen = 0;
 
+	if(hFile != INVALID_HANDLE_VALUE) {
+		LARGE_INTEGER li={0};
+		__int64 iTmpSize = 0;
+		if(GetFileSizeEx(hFile, &li)) {
+			iTmpSize = static_cast<__int64>(li.QuadPart);
+
+			nLen = checkSum(hFile, iTmpSize, pSection, pCondVar);
+		}
+	}
+
+	return nLen;
 }
 
-void CFileInformation::checkSum(HANDLE hFile, __int64 iSzie, CCriticalSection* pSection, BOOL* pCondVar)
+size_t CFileInformation::checkSum(HANDLE hFile, __int64 iSize, CCriticalSection* pSection, BOOL* pCondVar)
 {
 	if(hFile == INVALID_HANDLE_VALUE)
-		return;
+		return 0;
 
 	__int64	iRemain = iSize;
 	uint8_t uCRC = 0;
 	size_t nCRC = 0;
 	size_t nGrow = 1;
-	char szBuffer[CHECK_SUM_BUFFER_SIZE]={0};
+	char *szBuffer= new char[CHECK_SUM_BUFFER_SIZE+1];;
 	DWORD dwNumBytesRead = 0;
 	CSingleLock locker(pSection);
 	memset(szPath, 0, (PATH_MAX_LEN+1)*sizeof(TCHAR));
@@ -216,11 +240,13 @@ void CFileInformation::checkSum(HANDLE hFile, __int64 iSzie, CCriticalSection* p
 			if((pCondVar) && (!(*pCondVar)) ) {
 				locker.Unlock();
 				MD5.Cleanup();
-				return;
+				delete[] szBuffer;
+				return 0;
 			}
 			locker.Unlock();
 		}
 
+		memset(szBuffer, 0, (CHECK_SUM_BUFFER_SIZE+1)*sizeof(char));
 		if(!ReadFile(hFile, szBuffer, CHECK_SUM_BUFFER_SIZE, &dwNumBytesRead, nullptr)) {
 			break;
 		}
@@ -228,16 +254,29 @@ void CFileInformation::checkSum(HANDLE hFile, __int64 iSzie, CCriticalSection* p
 		MD5.Update((BYTE*)szBuffer, dwNumBytesRead);
 		iRemain -= static_cast<__int64>(dwNumBytesRead);
 	}
+	delete[] szBuffer;
 
 	DWORD dwChecksum = CHECK_SUM_MAX_LEN;
 	BYTE zChecksum[CHECK_SUM_MAX_LEN]={0};
 	TCHAR szHex[10]={0};
 	MD5.Finalize((BYTE*)zChecksum, &dwChecksum);
+	MD5.Cleanup();
 	for(DWORD d=0;d<dwChecksum;d++) {
+		locker.Lock();
+		if((pCondVar) && (!(*pCondVar)) ) {
+			locker.Unlock();
+			return 0;
+		}
+		locker.Unlock();
+
 		memset(szHex, 0, 10*sizeof(TCHAR));
 		_stprintf_s(szHex, 10, _T("%x"), static_cast<int>(zChecksum[d]));
 		_tcscat_s(szChecksum, CHECK_SUM_MAX_LEN, szHex);
 	}
+
+	nCheckumLen = static_cast<size_t>(dwChecksum);
+
+	return nCheckumLen;
 }
 
 void CFileInformation::setChecksum(LPCTSTR lpszChecksum, size_t len)
@@ -245,7 +284,7 @@ void CFileInformation::setChecksum(LPCTSTR lpszChecksum, size_t len)
 	memset(szPath, 0, (PATH_MAX_LEN+1)*sizeof(TCHAR));
 
 	if( (nullptr != lpszChecksum) && (len > 0) ) {
-		_tcscpy_s(szChecksum, CHECK_SUM_MAX_LEN, lpszChecksum);
+		nCheckumLen = _stprintf_s(szChecksum, CHECK_SUM_MAX_LEN, _T("%s"), lpszChecksum);
 	}
 }
 
@@ -467,4 +506,9 @@ void CFileInformation::setTypeName(LPCTSTR lpsz, bool bIsPath)
 LPCTSTR CFileInformation::getTypeName()
 {
 	return szTypeName;
+}
+
+size_t CFileInformation::getChecksumLength()
+{
+	return nCheckumLen;
 }

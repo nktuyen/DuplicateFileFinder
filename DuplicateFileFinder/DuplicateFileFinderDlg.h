@@ -49,6 +49,7 @@ protected:
 public:
 	CWorkerDialog* m_pWorkerDlg;
 	CScanThread* m_pScanThread;
+	CCriticalSection m_CriticalSection;
 	CListBox m_lstFiles;
 	CMapStringToPtr m_arrPaths;
 	CListCtrl m_lvwDetail;

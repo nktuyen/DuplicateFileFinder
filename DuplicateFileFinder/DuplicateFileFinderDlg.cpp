@@ -15,8 +15,8 @@
 #define new DEBUG_NEW
 #endif
 
-#define MIN_WIDTH			1000
-#define MIN_HEIGHT			700
+#define MIN_WIDTH			800
+#define MIN_HEIGHT			500
 #define LEFT_PANEL_WIDTH	460
 #define HORIZONTAL_PADDING	4
 #define VERTICAL_PADDING	6
@@ -32,7 +32,7 @@ CDuplicateFileFinderDlg::CDuplicateFileFinderDlg(CWnd* pParent /*=NULL*/)
 	CString	strMsg;
 	strMsg.Format(_T("%s_%d_%d"), AfxGetAppName(), reinterpret_cast<int>(AfxGetInstanceHandle()), static_cast<int>(GetCurrentProcessId()));
 	CDuplicateFileFinderDlg::m_sThreadMessage = RegisterWindowMessage(strMsg);
-	m_pScanThread = new CScanThread(this, m_pWorkerDlg, m_sThreadMessage);
+	m_pScanThread = new CScanThread(this, m_pWorkerDlg, m_sThreadMessage, &m_CriticalSection);
 	m_pWorkerDlg->SetWorkerThread(m_pScanThread);
 }
 
@@ -650,6 +650,7 @@ BOOL CDuplicateFileFinderDlg::AtLeastOneChecked()
 		(m_chkCreateTime.GetCheck() == BST_CHECKED) ||
 		(m_chkName.GetCheck() == BST_CHECKED) ||
 		(m_chkSize.GetCheck() == BST_CHECKED) ||
+		(m_chkTypeCriteria.GetCheck() == BST_CHECKED) ||
 		(m_chkWriteTime.GetCheck() == BST_CHECKED) )
 
 		return TRUE;
@@ -680,7 +681,7 @@ void CDuplicateFileFinderDlg::ResetDetailList()
 
 	//if(m_chkContent.GetCheck() == BST_CHECKED)
 	{
-		m_lvwDetail.InsertColumn(m_lvwDetail.GetHeaderCtrl()->GetItemCount(), _T("Checksum"), LVCFMT_LEFT, 120);
+		m_lvwDetail.InsertColumn(m_lvwDetail.GetHeaderCtrl()->GetItemCount(), _T("Checksum"), LVCFMT_LEFT, 160);
 	}
 
 	//if(m_chkAttributes.GetCheck() == BST_CHECKED)

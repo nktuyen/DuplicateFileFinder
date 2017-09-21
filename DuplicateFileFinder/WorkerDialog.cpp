@@ -146,8 +146,11 @@ BOOL CWorkerDialog::OnNcActivate(BOOL bActive)
 void CWorkerDialog::OnBnClickedBtnClose()
 {
 	if(m_pWorkerThread) {
+		m_pWorkerThread->DisableLock();
+		Sleep(10);
 		m_pWorkerThread->SuspendThread();
 	}
+
 	if(m_nTimerID != 0) {
 		KillTimer(m_nTimerID);
 		m_nTimerID = 0;
@@ -160,12 +163,14 @@ void CWorkerDialog::OnBnClickedBtnClose()
 		}
 
 		if(m_pWorkerThread) {
+			m_pWorkerThread->EnableLock();
 			m_pWorkerThread->ResumeThread();
 		}
 		return;
 	}
 
 	if(m_pWorkerThread) {
+		m_pWorkerThread->EnableLock();
 		m_pWorkerThread->Finalize();
 		m_pWorkerThread->ResumeThread();
 

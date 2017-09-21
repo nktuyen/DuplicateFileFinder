@@ -13,10 +13,12 @@ class CScanThread : public CWinThread
 {
 	enum EEnumChildFlag {EEnumChildSetEnable, EEnumChildRestoreEnable};
 public:
-	CScanThread(CWnd* pOwner = nullptr, CWorkerDialog* pProgressDlg = nullptr, UINT nMessageID = 0U);
+	CScanThread(CWnd* pOwner = nullptr, CWorkerDialog* pProgressDlg = nullptr, UINT nMessageID = 0U, CCriticalSection* pCriticlSection = nullptr);
 	virtual ~CScanThread();
 	BOOL Initialize(const CStringArray& strPath, BOOL bRecursive = FALSE);
 	void Finalize();
+	void DisableLock();
+	void EnableLock();
 	void RemoveAllFilters();
 	void AddFilter(CFileFolderFilter* pFilter) { m_ExcludeFilters.SetAt(pFilter->GetCriteria(), pFilter); }
 	void SetDuplicateMask(UINT nMask) { m_nDuplicateMask = nMask; }
@@ -50,7 +52,8 @@ private:
 	EEnumChildFlag m_EnumFlag;
 	BOOL m_bEnumVal;
 	CMap<HWND, HWND, BOOL, BOOL> m_Enables;
-	CCriticalSection m_CriticalSection;
+	CCriticalSection* m_pCriticalSection;
+	CCriticalSection* m_pOriginCriticalSection;
 };
 
 
