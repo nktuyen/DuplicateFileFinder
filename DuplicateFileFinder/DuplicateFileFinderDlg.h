@@ -108,7 +108,6 @@ public:
 	CButton m_chkExcludeArchive;
 	CButton m_chkScanRecursive;
 	CComboBox m_cboDuplicatedFileTypes;
-	CMapStringToString m_arrFileTypes;
 	CStatic m_sttFolderCount;
 	CMapStringToPtr mapDuplicateFiles;
 	CMapStringToPtr	mapDuplicateFilesTypes;
