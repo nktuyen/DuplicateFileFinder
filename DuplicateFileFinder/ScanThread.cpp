@@ -56,19 +56,17 @@ BOOL CScanThread::InitInstance()
 
 int CScanThread::ExitInstance()
 {
-	bool bLocked = m_RunSection.try_lock();
+	CSingleLock locker(&m_CriticalSection);
+	locker.Lock();
 	m_bRunning = FALSE;
-	if(bLocked) {
-		m_RunSection.unlock();
-		bLocked = false;
-	}
 	CloseHandle(m_hThread);
 	m_hThread = nullptr;
-
 	RestoreAllControlsEnableState();
 
 	if(m_pOwnerWnd && m_pOwnerWnd->GetSafeHwnd())
 		m_pOwnerWnd->SendMessage(m_nMessageID, (WPARAM)TM_EXIT);
+
+	locker.Unlock();
 
 	if(m_pProgressDlg) {
 		if(m_pProgressDlg->GetSafeHwnd())
@@ -81,18 +79,16 @@ int CScanThread::ExitInstance()
 
 void CScanThread::Finalize()
 {
-	if(m_bRunning) {
-		bool bLocked = m_RunSection.try_lock();
-		m_bRunning = FALSE;
-		if(bLocked) {
-			m_RunSection.unlock();
-			bLocked = false;
-		}
-	}
+	CSingleLock locker(&m_CriticalSection);
+	locker.Lock();
+	m_bRunning = FALSE;
+	locker.Unlock();
 }
 
 BOOL CScanThread::Initialize(const CStringArray& strPath, BOOL bRecursive)
 {
+	CSingleLock locker(&m_CriticalSection);
+	locker.Lock();
 	m_bRecursive = bRecursive;
 	m_arrPaths.Copy(strPath);
 	m_arrScannedFiles.RemoveAll();
@@ -107,8 +103,9 @@ BOOL CScanThread::Initialize(const CStringArray& strPath, BOOL bRecursive)
 		m_pProgressDlg->SetProgressValue(0);
 	}
 
-	m_bRunning = TRUE;
 	
+	m_bRunning = TRUE;
+	locker.Unlock();
 	return TRUE;
 }
 
@@ -121,26 +118,22 @@ int CScanThread::Run()
 	CString	strCurrentPath;
 	CString	strMessage;
 	__int64 iTotalSize = 0;
+	CSingleLock locker(&m_CriticalSection);
 	for(INT_PTR i=0;i<m_arrPaths.GetCount();i++)
 	{
 		strCurrentPath = m_arrPaths.GetAt(i);
 
-		bLocked = m_RunSection.try_lock();
-		if(!m_bRunning)
+		locker.Lock();
+		if(!m_bRunning) {
+			locker.Unlock();
 			break;
-
-		if(bLocked) {
-			m_RunSection.unlock();
-			bLocked = false;
 		}
+		locker.Unlock();
 
 		m_arrScannedFolder.SetAt(strCurrentPath, strCurrentPath);
 		WalkDir(strCurrentPath, m_bRecursive, iTotalSize);
 	}
-	if(bLocked) {
-		m_RunSection.unlock();
-		bLocked = false;
-	}
+	
 
 	if(m_pProgressDlg) {
 		m_pProgressDlg->SetProgressType(CWorkerDialog::eFILL);
@@ -158,15 +151,14 @@ int CScanThread::Run()
 	CString strKey;
 	CString strVal;
 	for(INT_PTR j=0;j<m_arrScannedFiles.GetCount();j++) {
-		bLocked = m_RunSection.try_lock();
+		locker.Lock();
 
-		if(!m_bRunning)
+		if(!m_bRunning) {
+			locker.Unlock();
 			break;
-
-		if(bLocked) {
-			m_RunSection.unlock();
-			bLocked = false;
 		}
+		locker.Unlock();
+
 		m_strCurrentFile = m_arrScannedFiles.GetAt(j);
 
 		if(m_pProgressDlg) {
@@ -205,11 +197,6 @@ int CScanThread::Run()
 		if(m_pProgressDlg) {
 			m_pProgressDlg->SetProgressValue(static_cast<int>(static_cast<double>(j)/static_cast<double>(m_arrScannedFiles.GetCount())*100.0) );
 		}
-	}
-
-	if(bLocked) {
-		m_RunSection.unlock();
-		bLocked = false;
 	}
 
 	RestoreAllControlsEnableState();
@@ -285,8 +272,17 @@ BOOL CScanThread::IsExcludeFile(const CString& strPath)
 	EFileFolderFilterCriteria eCriteria;
 	CFileFolderFilter* pFilter = nullptr;
 	UINT nCount = 0;
+	CSingleLock locker(&m_CriticalSection);
+
 	while (pos)
 	{
+		locker.Lock();
+		if(!m_bRunning) {
+			locker.Unlock();
+			break;
+		}
+		locker.Unlock();
+
 		m_ExcludeFilters.GetNextAssoc(pos, eCriteria, pFilter);
 		if(pFilter != nullptr) {
 			if(pFilter->Filter(strPath))
@@ -317,17 +313,16 @@ void CScanThread::WalkDir(const CString& strPath, BOOL bRecursive, __int64& iTot
 	LARGE_INTEGER li={0};
 	HANDLE hSearch = ::FindFirstFile(strPattern, &fd);
 	bool bLocked = false;
+	CSingleLock locker(&m_CriticalSection);
 	if(hSearch != INVALID_HANDLE_VALUE) {
 		do 
 		{
-			bLocked = m_RunSection.try_lock();
-			if(!m_bRunning)
+			locker.Lock();
+			if(!m_bRunning) {
+				locker.Unlock();
 				break;
-
-			if(bLocked) {
-				m_RunSection.unlock();
-				bLocked = false;
 			}
+			locker.Unlock();
 
 			strFileName = fd.cFileName;
 			if(fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
@@ -356,12 +351,8 @@ void CScanThread::WalkDir(const CString& strPath, BOOL bRecursive, __int64& iTot
 			}
 
 			memset(&fd, 0, sizeof(WIN32_FIND_DATA));
-		} while (::FindNextFile(hSearch, &fd));
+		} while (::FindNextFile(hSearch, &fd) && m_bRunning);
 
-		if(bLocked) {
-			m_RunSection.unlock();
-			bLocked = false;
-		}
 	}
 
 	::FindClose(hSearch);
@@ -386,17 +377,15 @@ bool CScanThread::CRCFile(const CString& strPath, CArray<uint16_t>& vecCRC, CArr
 		DWORD dwRead = 0;
 		uint8_t uCRC = 0;
 		UINT nCRCLen = 0;
-
+		CSingleLock locker(&m_CriticalSection);
 		while (iRemainSize > 0)
 		{
-			bLocked = m_RunSection.try_lock();
-			if(!m_bRunning)
+			locker.Lock();
+			if(!m_bRunning) {
+				locker.Unlock();
 				break;
-
-			if(bLocked) {
-				m_RunSection.unlock();
-				bLocked = false;
 			}
+			locker.Unlock();
 
 			memset(buff, 0, BUFFER_SIZE);
 
@@ -465,20 +454,14 @@ UINT CScanThread::FindDuplicate(const CString& strPath, CMapStringToString& arrD
 	LARGE_INTEGER li = {0};
 	iSize0 = SizeOfFile(strPath);
 
-	bool bLocked = m_RunSection.try_lock();
+	CSingleLock locker(&m_CriticalSection);
+	locker.Lock();
 	if(!m_bRunning)
 	{
-		if(bLocked) {
-			m_RunSection.unlock();
-			bLocked = false;
-		}
+		locker.Unlock();
 		return nDup;
 	}
-
-	if(bLocked) {
-		m_RunSection.unlock();
-		bLocked = false;
-	}
+	locker.Unlock();
 
 	if(m_arrDuplicateChecks.GetCount() > 0) {
 		POSITION pos = m_arrDuplicateChecks.GetStartPosition();
@@ -534,14 +517,12 @@ UINT CScanThread::FindDuplicate(const CString& strPath, CMapStringToString& arrD
 		while (pos)
 		{
 			nMask = 0U;
-			bLocked = m_RunSection.try_lock();
-			if(!m_bRunning)
+			locker.Lock();
+			if(!m_bRunning) {
+				locker.Unlock();
 				break;
-
-			if(bLocked) {
-				m_RunSection.unlock();
-				bLocked = false;
 			}
+			locker.Unlock();
 
 			m_arrDuplicateChecks.GetNextAssoc(pos, strCurPath, strValue);
 			if(strCurPath.CompareNoCase(strPath) == 0)
@@ -609,21 +590,15 @@ UINT CScanThread::FindDuplicate(const CString& strPath, CMapStringToString& arrD
 					}
 
 					for(vecIndex=0;vecIndex<vecCRC0.GetSize();vecIndex++) {
-						bLocked = m_RunSection.try_lock();
-						if(!m_bRunning)
+						locker.Lock();
+						if(!m_bRunning) {
+							locker.Unlock();
 							break;
-
-						if(bLocked) {
-							m_RunSection.unlock();
-							bLocked = false;
 						}
+						locker.Unlock();
 
 						if(vecCRC0[vecIndex] != vecCRC1[vecIndex])
 							break;
-					}
-					if(bLocked) {
-						m_RunSection.unlock();
-						bLocked = false;
 					}
 
 					nMask |= DUPLICATE_CRITERIA_CONTENT;
@@ -656,11 +631,6 @@ UINT CScanThread::FindDuplicate(const CString& strPath, CMapStringToString& arrD
 				nDup++;
 			}
 		}
-
-		if(bLocked) {
-			m_RunSection.unlock();
-			bLocked = false;
-		}
 	}
 
 	return nDup;
@@ -670,8 +640,16 @@ void CScanThread::crc8PushByte(uint8_t *crc, uint8_t ch) {
 	uint8_t i;
 
 	*crc = *crc ^ ch;
+	CSingleLock locker(&m_CriticalSection);
 
 	for (i=0; i<8; i++) {
+		locker.Lock();
+		if(!m_bRunning) {
+			locker.Unlock();
+			break;
+		}
+		locker.Unlock();
+
 		if (*crc & 1) {
 			*crc = (*crc >> 1) ^0x8c;
 		}
@@ -683,8 +661,15 @@ void CScanThread::crc8PushByte(uint8_t *crc, uint8_t ch) {
 
 uint8_t CScanThread::CRC(uint8_t *pcrc, uint8_t *block, uint16_t count) {
 	uint8_t crc = pcrc ? *pcrc : 0;
+	CSingleLock locker(&m_CriticalSection);
 
 	for (; count>0; --count, block++) {
+		locker.Lock();
+		if(!m_bRunning) {
+			locker.Unlock();
+			break;
+		}
+		locker.Unlock();
 		crc8PushByte(&crc, *block);
 	}
 	if (pcrc) *pcrc = crc;

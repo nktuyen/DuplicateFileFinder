@@ -39,7 +39,7 @@ protected:
 	BOOL PreTranslateMessage(MSG* pMsg);
 	void InitUI();
 	BOOL AtLeastOneChecked();
-	UINT EnumCheckedPaths();
+	INT_PTR EnumCheckedPaths();
 	void EnumCheckedChildNode(HTREEITEM hNode);
 	BOOL ReadyToScan();
 	void ResetDetailList();

@@ -749,7 +749,7 @@ void CDuplicateFileFinderDlg::OnBnClickedBtnScan()
 	POSITION pos = m_arrPaths.GetStartPosition();
 	CString	strPath;
 	CStringArray arrPaths;
-	int nItem = -1;
+	INT_PTR nItem = -1;
 	while (pos)
 	{
 		m_arrPaths.GetNextAssoc(pos, strPath, reinterpret_cast<void*&>(nItem));
@@ -845,7 +845,7 @@ BOOL CDuplicateFileFinderDlg::ReadyToScan()
 		return FALSE;
 	}
 
-	UINT nSekected = EnumCheckedPaths();
+	INT_PTR nSekected = EnumCheckedPaths();
 	if(0 >= nSekected) {
 		AfxMessageBox(_T("No folder to scan!"), MB_ICONEXCLAMATION);
 		return FALSE;
@@ -854,7 +854,7 @@ BOOL CDuplicateFileFinderDlg::ReadyToScan()
 	return TRUE;
 }
 
-UINT CDuplicateFileFinderDlg::EnumCheckedPaths()
+INT_PTR CDuplicateFileFinderDlg::EnumCheckedPaths()
 {
 	return m_arrPaths.GetCount();
 }
@@ -1014,9 +1014,7 @@ LRESULT CDuplicateFileFinderDlg::OnScanThreadMessage(WPARAM wparam, LPARAM lPara
 
 		strNameOut.Format(_T("Process (%d) Duplicated Files"), m_lstFiles.GetCount());
 		m_btnProcessAll.SetWindowText(strNameOut);
-		m_btnProcessAll.EnableWindow(m_lstFiles.GetCount() > 0);
 	}
-
 	else {
 		UINT uMsg = (UINT)wparam;
 		if(TM_EXIT == uMsg) {

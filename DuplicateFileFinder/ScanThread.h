@@ -3,7 +3,7 @@
 #include "PatternFilter.h"
 #include "SizeFilter.h"
 #include "AttributesFilter.h"
-#include <mutex>
+#include <cstdint>
 
 class CWorkerDialog;
 
@@ -46,11 +46,11 @@ private:
 	CMap<EFileFolderFilterCriteria,EFileFolderFilterCriteria,CFileFolderFilter*,CFileFolderFilter*> m_ExcludeFilters;
 	CStringArray m_arrPaths;
 	BOOL m_bRunning;
-	std::mutex m_RunSection;
 	BOOL m_bRecursive;
 	EEnumChildFlag m_EnumFlag;
 	BOOL m_bEnumVal;
 	CMap<HWND, HWND, BOOL, BOOL> m_Enables;
+	CCriticalSection m_CriticalSection;
 };
 
 
