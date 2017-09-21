@@ -10,13 +10,14 @@ private:
 	TCHAR szName[NAME_MAX_LEN+1];
 	TCHAR szPath[PATH_MAX_LEN+1];
 	TCHAR szChecksum[CHECK_SUM_MAX_LEN+1];
+	TCHAR szTypeName[TYPE_NAME_MAX_LEN+1];
 	__int64 iSize;
 	DWORD dwAttributes;
 	SYSTEMTIME tmCreate;
 	SYSTEMTIME tmAccess;
 	SYSTEMTIME tmWrite;
 public:
-	CFileInformation();
+	CFileInformation(CFileInformation* pInfo = nullptr);
 	CFileInformation(LPCTSTR lpszFile, CCriticalSection* pSection, BOOL* pCondVar, UINT nMask);
 	virtual ~CFileInformation();
 
@@ -51,6 +52,9 @@ public:
 	SYSTEMTIME* getCreationTime();
 	SYSTEMTIME* getAccessTime();
 	SYSTEMTIME* getWriteTime() ;
+	BOOL compareTime(SYSTEMTIME* p1, SYSTEMTIME* p2);
+	LPCTSTR getTypeName();
+	void setTypeName(LPCTSTR lpszTypeName, bool bIsPath);
 private:
 	void crc8PushByte(uint8_t *crc, uint8_t ch, CCriticalSection* pSection, BOOL* pCondVar);
 	uint8_t CRC(uint8_t *pcrc, uint8_t *block, uint16_t count, CCriticalSection* pSection, BOOL* pCondVar);

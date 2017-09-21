@@ -144,20 +144,39 @@ int CScanThread::Run()
 		}
 
 		POSITION pos = m_arrScannedFiles.GetStartPosition();
-		CString	strCurPath;
 		CFileInformation* pInfo = nullptr;
-		CMapStringToString arrIdenticalFiles;
+		
 		INT_PTR nCurFile = 0;
 		INT_PTR nTotalFiles = m_arrScannedFiles.GetCount();
+		SFilesDuplicateInfo * pDuplicateInfo = nullptr;
 
 		while (pos) {
-			arrIdenticalFiles.RemoveAll();
-			m_arrScannedFiles.GetNextAssoc(pos, strCurPath, (void*&)pInfo);
-			m_arrFilesToCheck.RemoveKey(strCurPath);
 
-			if(IsDuplicateFile(strCurPath, arrIdenticalFiles, pInfo)) {
-
+			locker.Lock();
+			if(!m_bRunning) {
+				locker.Unlock();
+				break;
 			}
+			locker.Unlock();
+
+			m_arrScannedFiles.GetNextAssoc(pos, strCurrentPath, (void*&)pInfo);
+			m_arrFilesToCheck.RemoveKey(strCurrentPath);
+			pDuplicateInfo = new SFilesDuplicateInfo();
+			pDuplicateInfo->DuplicateFiles = new CMapStringToString();
+			if(IsDuplicateFile(strCurrentPath, pDuplicateInfo->DuplicateFiles, pInfo)) {
+				pDuplicateInfo->DuplicateFiles->SetAt(strCurrentPath, strCurrentPath);
+				if(m_pOwnerWnd && m_pOwnerWnd->GetSafeHwnd()) {
+					m_strCurrentFile = strCurrentPath;
+					pDuplicateInfo->DuplicateInfo = new CFileInformation(pInfo);
+					m_pOwnerWnd->SendMessage(m_nMessageID, NULL, (LPARAM)pDuplicateInfo);
+				}
+				RemoveIdenticalFiles(pDuplicateInfo->DuplicateFiles);
+			}
+			else {
+				delete pDuplicateInfo->DuplicateFiles;
+				delete pDuplicateInfo;
+			}
+			pDuplicateInfo = nullptr;
 			//
 			nCurFile++;
 			if(m_pProgressDlg) {
@@ -262,12 +281,94 @@ BOOL CScanThread::IsExcludeFile(const CString& strPath)
 	return (nCount == m_ExcludeFilters.GetCount());
 }
 
-UINT CScanThread::IsDuplicateFile(const CString& strPath, CMapStringToString& arrIdenticalFiles, CFileInformation* pDuplicateInfo /* = nullptr */)
+UINT CScanThread::IsDuplicateFile(const CString& strPath, CMapStringToString* arrIdenticalFiles, CFileInformation* pDuplicateInfo /* = nullptr */)
 {
 	UINT nDup = 0U;
 
-	if(m_arrScannedFiles.GetCount() > 0) {
-		POSITION pos = m_arrScannedFiles.GetStartPosition();
+	CSingleLock locker(&m_CriticalSection);
+	if(m_arrFilesToCheck.GetCount() > 0) {
+		POSITION pos = m_arrFilesToCheck.GetStartPosition();
+		CString	strCurrentPath;
+		CString	strTemp;
+		CFileInformation* pSourceInfo = nullptr;
+		CFileInformation* pDestInfo = nullptr;
+		UINT nMask = 0;
+
+		while (pos) {
+			locker.Lock();
+			if(!m_bRunning) {
+				locker.Unlock();
+				break;
+			}
+			locker.Unlock();
+
+			nMask = 0;
+			m_arrFilesToCheck.GetNextAssoc(pos, strCurrentPath, strTemp);
+			if(strCurrentPath.CompareNoCase(strPath) == 0) {
+				continue;	//Do not compare same instance of the file
+			}
+
+			pSourceInfo = nullptr;
+			pDestInfo = nullptr;
+			if( !(m_arrScannedFiles.Lookup(strPath, (void*&)pSourceInfo)) || !(m_arrScannedFiles.Lookup(strCurrentPath, (void*&)pDestInfo)) ) {
+				continue;
+			}
+
+			if(m_nDuplicateMask & DUPLICATE_CRITERIA_NAME) {
+				if(_tcsicmp(pSourceInfo->getName(), pDestInfo->getName()) != 0)
+					continue;
+				else
+					nMask |= DUPLICATE_CRITERIA_NAME;
+			}
+
+			if(m_nDuplicateMask & DUPLICATE_CRITERIA_SIZE) {
+				if(pSourceInfo->getSize() != pDestInfo->getSize())
+					continue;
+				else
+					nMask |= DUPLICATE_CRITERIA_SIZE;
+			}
+
+			if(m_nDuplicateMask & DUPLICATE_CRITERIA_ATTRIBUTES) {
+				if(pSourceInfo->getAttributes() & pDestInfo->getAttributes())
+					continue;
+				else
+					nMask |= DUPLICATE_CRITERIA_ATTRIBUTES;
+			}
+
+			if(m_nDuplicateMask & DUPLICATE_CRITERIA_CREATION_TIME) {
+				if(! pSourceInfo->compareTime(pSourceInfo->getCreationTime(), pDestInfo->getCreationTime()))
+					continue;
+				else
+					nMask |= DUPLICATE_CRITERIA_CREATION_TIME;
+			}
+
+			if(m_nDuplicateMask & DUPLICATE_CRITERIA_ACCESS_TIME) {
+				if(! pSourceInfo->compareTime(pSourceInfo->getAccessTime(), pDestInfo->getAccessTime()))
+					continue;
+				else
+					nMask |= DUPLICATE_CRITERIA_ACCESS_TIME;
+			}
+
+			if(m_nDuplicateMask & DUPLICATE_CRITERIA_WRITE_TIME) {
+				if(! pSourceInfo->compareTime(pSourceInfo->getWriteTime(), pDestInfo->getWriteTime()))
+					continue;
+				else
+					nMask |= DUPLICATE_CRITERIA_WRITE_TIME;
+			}
+
+			if(m_nDuplicateMask & DUPLICATE_CRITERIA_CONTENT) {
+				if(_tcsicmp(pSourceInfo->getChecksum(), pDestInfo->getChecksum()) != 0)
+					continue;
+				else
+					nMask |= DUPLICATE_CRITERIA_CONTENT;
+			}
+
+			if(nMask == m_nDuplicateMask) { //Duplicated
+				nDup++;
+				if(nullptr != arrIdenticalFiles)
+					arrIdenticalFiles->SetAt(strCurrentPath, strCurrentPath);
+			}
+		}
 	}
 
 	return nDup;
@@ -322,6 +423,7 @@ void CScanThread::WalkDir(const CString& strPath, BOOL bRecursive, __int64& iTot
 				if(!IsExcludeFile(strFullPath)){
 					if(m_pOwnerWnd && m_pOwnerWnd->GetSafeHwnd()) {
 						m_arrScannedFiles.SetAt(strFullPath, new CFileInformation(strFullPath,  &m_CriticalSection, &m_bRunning, m_nDuplicateMask));
+						m_arrFilesToCheck.SetAt(strFullPath, strFullPath);
 						li.LowPart = fd.nFileSizeLow;
 						li.HighPart = fd.nFileSizeHigh;
 						iTotalSize += static_cast<__int64>(li.QuadPart);
@@ -335,4 +437,28 @@ void CScanThread::WalkDir(const CString& strPath, BOOL bRecursive, __int64& iTot
 	}
 
 	::FindClose(hSearch);
+}
+
+void CScanThread::RemoveIdenticalFiles(CMapStringToString* pIdenticalFiles)
+{
+	if(nullptr == pIdenticalFiles)
+		return;
+
+	POSITION pos = pIdenticalFiles->GetStartPosition();
+	CString	strCurPath;
+	CString	strTemp;
+	CSingleLock locker(&m_CriticalSection);
+
+	while (pos) {
+		locker.Lock();
+		if(!m_bRunning) {
+			locker.Unlock();
+			break;
+		}
+		locker.Unlock();
+
+
+		pIdenticalFiles->GetNextAssoc(pos, strCurPath, strTemp);
+		m_arrFilesToCheck.RemoveKey(strCurPath);
+	}
 }

@@ -4,6 +4,7 @@
 class CScanThread;
 
 #define		PM_EXIT (WM_USER + 101)
+#define		TIMER_INTERVAL	40
 
 class CWorkerDialog : public CDialog
 {
@@ -45,7 +46,7 @@ public:
 			if(m_eType == eMARQUEE) {
 				m_prgbProgress.ModifyStyle(0, PBS_MARQUEE);
 				if(GetSafeHwnd()) {
-					m_nTimerID = SetTimer(reinterpret_cast<UINT_PTR>(GetSafeHwnd()), 60, nullptr);
+					m_nTimerID = SetTimer(reinterpret_cast<UINT_PTR>(GetSafeHwnd()), TIMER_INTERVAL, nullptr);
 				}
 			}
 			else {

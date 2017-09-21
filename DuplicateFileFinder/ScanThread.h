@@ -29,9 +29,10 @@ private:
 	void WalkDir(const CString& strPath, BOOL bRecursive, __int64& iTotalSize);
 	BOOL OnEnumChild(HWND hChild);
 	BOOL IsExcludeFile(const CString& strPath);
-	UINT IsDuplicateFile(const CString& strPath, CMapStringToString& arrIdenticalFiles, CFileInformation* pDuplicateInfo = nullptr);
+	UINT IsDuplicateFile(const CString& strPath, CMapStringToString* arrIdenticalFiles, CFileInformation* pDuplicateInfo = nullptr);
 	static BOOL CALLBACK EnumChildProc(HWND   hwnd, LPARAM lParam);
 	void RemoveAllScannedFiles();
+	void RemoveIdenticalFiles(CMapStringToString* pIdenticalFiles);
 private:
 	CWorkerDialog* m_pProgressDlg;
 	UINT m_nDuplicateMask;

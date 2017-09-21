@@ -4,17 +4,32 @@
 
 #define CHECK_SUM_BUFFER_SIZE	0xFC00	//63kb
 
-CFileInformation::CFileInformation() 
+CFileInformation::CFileInformation(CFileInformation* pInfo /* = nullptr */)
 {
-	nMask = 0U;
-	memset(szName, 0, (NAME_MAX_LEN+1)*sizeof(TCHAR));
-	memset(szPath, 0, (PATH_MAX_LEN+1)*sizeof(TCHAR));
-	memset(szChecksum, 0, (CHECK_SUM_MAX_LEN+1)*sizeof(TCHAR));
-	iSize = 0;
-	dwAttributes = 0;
-	memset(&tmCreate, 0, sizeof(SYSTEMTIME));
-	memset(&tmAccess, 0, sizeof(SYSTEMTIME));
-	memset(&tmWrite, 0, sizeof(SYSTEMTIME));
+	if(nullptr == pInfo) {
+		nMask = 0U;
+		memset(szName, 0, (NAME_MAX_LEN+1)*sizeof(TCHAR));
+		memset(szPath, 0, (PATH_MAX_LEN+1)*sizeof(TCHAR));
+		memset(szTypeName, 0, (TYPE_NAME_MAX_LEN+1)*sizeof(TCHAR));
+		memset(szChecksum, 0, (CHECK_SUM_MAX_LEN+1)*sizeof(TCHAR));
+		iSize = 0;
+		dwAttributes = 0;
+		memset(&tmCreate, 0, sizeof(SYSTEMTIME));
+		memset(&tmAccess, 0, sizeof(SYSTEMTIME));
+		memset(&tmWrite, 0, sizeof(SYSTEMTIME));
+	}
+	else {
+		nMask = pInfo->nMask;
+		setName(pInfo->getName());
+		setPathName(pInfo->getPath());
+		setChecksum(pInfo->getChecksum(), CHECK_SUM_MAX_LEN);
+		setSize(pInfo->getSize());
+		setAttributes(pInfo->getAttributes());
+		setCreateTime(pInfo->getCreationTime());
+		setAccessTime(pInfo->getAccessTime());
+		setWriteTime(pInfo->getWriteTime());
+		setTypeName(pInfo->getTypeName(), false);
+	}
 }
 
 CFileInformation::CFileInformation(LPCTSTR lpszFile, CCriticalSection* pSection, BOOL* pCondVar, UINT nMask) 
@@ -23,6 +38,7 @@ CFileInformation::CFileInformation(LPCTSTR lpszFile, CCriticalSection* pSection,
 	memset(szName, 0, (NAME_MAX_LEN+1)*sizeof(TCHAR));
 	memset(szPath, 0, (PATH_MAX_LEN+1)*sizeof(TCHAR));
 	memset(szChecksum, 0, (CHECK_SUM_MAX_LEN+1)*sizeof(TCHAR));
+	memset(szTypeName, 0, (TYPE_NAME_MAX_LEN+1)*sizeof(TCHAR));
 	iSize = 0;
 	dwAttributes = 0;
 	memset(&tmCreate, 0, sizeof(SYSTEMTIME));
@@ -43,6 +59,7 @@ CFileInformation::CFileInformation(LPCTSTR lpszFile, CCriticalSection* pSection,
 	if(nMask & DUPLICATE_CRITERIA_ATTRIBUTES)
 		setAttributes(lpszFile);
 
+	setTypeName(lpszFile, true);
 
 	HANDLE hFile = CreateFile(lpszFile, GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING, 0, nullptr);
 	if(hFile != INVALID_HANDLE_VALUE) {
@@ -390,4 +407,64 @@ SYSTEMTIME* CFileInformation::getAccessTime()
 SYSTEMTIME* CFileInformation::getWriteTime() 
 {
 	return &tmWrite;
+}
+
+BOOL CFileInformation::compareTime(SYSTEMTIME* p1, SYSTEMTIME* p2)
+{
+	if( (p1 == nullptr) && (p2 == nullptr) )
+		return TRUE;
+
+	if( ( (p1 != nullptr) && (p2 == nullptr) ) || ( (p1 == nullptr) && (p2 != nullptr) ) )
+		return FALSE;
+
+	if(p1->wDay != p2->wDay)
+		return FALSE;
+
+	if(p1->wDayOfWeek != p2->wDayOfWeek)
+		return FALSE;
+
+	if(p1->wHour != p2->wHour)
+		return FALSE;
+
+	if(p1->wMilliseconds != p2->wMilliseconds)
+		return FALSE;
+
+	if(p1->wMinute != p2->wMinute)
+		return FALSE;
+
+	if(p1->wMonth != p2->wMonth)
+		return FALSE;
+
+	if(p1->wSecond != p2->wSecond)
+		return FALSE;
+
+	if(p1->wYear != p2->wYear)
+		return FALSE;
+
+	return TRUE;
+}
+
+
+
+void CFileInformation::setTypeName(LPCTSTR lpsz, bool bIsPath)
+{
+	if(!bIsPath) {
+		memset(szTypeName, 0, (TYPE_NAME_MAX_LEN+1)*sizeof(TCHAR));
+		if(lpsz != nullptr) {
+			_tcscpy_s(szTypeName, TYPE_NAME_MAX_LEN, lpsz);
+		}
+	}
+	else {
+		SHFILEINFO si = {0};
+		memset(szTypeName, 0, (TYPE_NAME_MAX_LEN+1)*sizeof(TCHAR));
+		if(SHGetFileInfo(lpsz, 0, &si, sizeof(SHFILEINFO), SHGFI_TYPENAME ) > 0)
+		{
+			_tcscpy_s(szTypeName, TYPE_NAME_MAX_LEN, si.szTypeName);
+		}
+	}
+}
+
+LPCTSTR CFileInformation::getTypeName()
+{
+	return szTypeName;
 }

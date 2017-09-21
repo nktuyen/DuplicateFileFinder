@@ -156,7 +156,7 @@ void CWorkerDialog::OnBnClickedBtnClose()
 	if(nRes != IDYES) {
 
 		if(m_eType == eMARQUEE) {
-			m_nTimerID = SetTimer(reinterpret_cast<UINT_PTR>(GetSafeHwnd()), 60, nullptr);
+			m_nTimerID = SetTimer(reinterpret_cast<UINT_PTR>(GetSafeHwnd()), TIMER_INTERVAL, nullptr);
 		}
 
 		if(m_pWorkerThread) {
