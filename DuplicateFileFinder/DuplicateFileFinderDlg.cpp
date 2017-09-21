@@ -9,6 +9,7 @@
 #include "WorkerDialog.h"
 #include "ScanThread.h"
 #include "CommonDef.h"
+#include <math.h>
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
@@ -110,6 +111,7 @@ BEGIN_MESSAGE_MAP(CDuplicateFileFinderDlg, CDialogEx)
 	ON_NOTIFY(NM_CLICK, IDC_LVW_DETAIL, &CDuplicateFileFinderDlg::OnNMClickLvwDetail)
 	ON_NOTIFY(LVN_ITEMCHANGED, IDC_LVW_DETAIL, &CDuplicateFileFinderDlg::OnLvnItemchangedLvwDetail)
 	ON_CBN_SELCHANGE(IDC_CBO_DUPLICATED_FILE_TYPES, &CDuplicateFileFinderDlg::OnCbnSelchangeCboDuplicatedFileTypes)
+	ON_BN_CLICKED(IDC_CHK_TYPE, &CDuplicateFileFinderDlg::OnBnClickedChkType)
 END_MESSAGE_MAP()
 
 
@@ -491,16 +493,15 @@ void CDuplicateFileFinderDlg::OnSize(UINT nType, int cx, int cy)
 				m_btnProcessAll.GetWindowRect(rcButton);
 			}
 
-			rcTemp = rcLabel;
-			rcTemp.bottom = (rcExclude.bottom - rcButton.Height() - VERTICAL_PADDING);
-			rcTemp.right = (rcDialog.right - HORIZONTAL_PADDING);
-			rcListBox = rcTemp;
-			m_lstFiles.MoveWindow(rcTemp);
+			rcListBox = rcLabel;
+			rcListBox.bottom = rcFolderTree.bottom;
+			rcListBox.right = (rcDialog.right - HORIZONTAL_PADDING);
+			m_lstFiles.MoveWindow(rcListBox);
 
 			if(m_btnProcessAll.GetSafeHwnd()) {
 				rcTemp.left = (rcListBox.left + (rcListBox.Width()-rcButton.Width())/2);
 				rcTemp.right = (rcTemp.left + rcButton.Width());
-				rcTemp.bottom = rcExclude.bottom;
+				rcTemp.bottom = (rcListBox.bottom + VERTICAL_PADDING + rcButton.Height());
 				rcTemp.top = (rcTemp.bottom - rcButton.Height());
 
 				m_btnProcessAll.MoveWindow(rcTemp);
@@ -518,7 +519,7 @@ void CDuplicateFileFinderDlg::OnSize(UINT nType, int cx, int cy)
 		}
 
 		rcLabel.left = rcListBox.left;
-		rcLabel.top = rcGroupBox.top;
+		rcLabel.top = (rcListBox.bottom + rcButton.Height() + VERTICAL_PADDING);
 		if(m_sttDuplicationDetail.GetSafeHwnd()) {
 			m_sttDuplicationDetail.GetWindowRect(rcTemp);
 			rcLabel.right = (rcLabel.left + rcTemp.Width());
@@ -612,6 +613,7 @@ void CDuplicateFileFinderDlg::InitUI()
 	m_chkSize.SetCheck(BST_CHECKED);
 	m_chkTypeCriteria.SetCheck(BST_CHECKED);
 	OnBnClickedChkSize();
+	ResetDetailList();
 
 	m_lvwFolders.InsertColumn(0, _T("Path"), LVCFMT_LEFT, 500);
 	m_lvwFolders.GetHeaderCtrl()->SetFont(&m_fntBold);
@@ -666,31 +668,38 @@ void CDuplicateFileFinderDlg::ResetDetailList()
 	m_lvwDetail.InsertColumn(0, _T("Parent Folder"), LVCFMT_LEFT, 300);
 	m_lvwDetail.InsertColumn(1, _T("Name"), LVCFMT_LEFT, 200);
 
-	if(m_chkTypeCriteria.GetCheck() == BST_CHECKED) {
+	//if(m_chkTypeCriteria.GetCheck() == BST_CHECKED) 
+	{
 		m_lvwDetail.InsertColumn(m_lvwDetail.GetHeaderCtrl()->GetItemCount(), _T("Type"), LVCFMT_LEFT, 120);
 	}
 
-	if(m_chkSize.GetCheck() == BST_CHECKED) {
+	//if(m_chkSize.GetCheck() == BST_CHECKED) 
+	{
 		m_lvwDetail.InsertColumn(m_lvwDetail.GetHeaderCtrl()->GetItemCount(), _T("Size"), LVCFMT_LEFT, 60);
 	}
 
-	if(m_chkContent.GetCheck() == BST_CHECKED) {
+	//if(m_chkContent.GetCheck() == BST_CHECKED)
+	{
 		m_lvwDetail.InsertColumn(m_lvwDetail.GetHeaderCtrl()->GetItemCount(), _T("Checksum"), LVCFMT_LEFT, 120);
 	}
 
-	if(m_chkAttributes.GetCheck() == BST_CHECKED) {
+	//if(m_chkAttributes.GetCheck() == BST_CHECKED)
+	{
 		m_lvwDetail.InsertColumn(m_lvwDetail.GetHeaderCtrl()->GetItemCount(), _T("Attributes"), LVCFMT_LEFT, 70);
 	}
 
-	if(m_chkCreateTime.GetCheck() == BST_CHECKED) {
+	//if(m_chkCreateTime.GetCheck() == BST_CHECKED)
+	{
 		m_lvwDetail.InsertColumn(m_lvwDetail.GetHeaderCtrl()->GetItemCount(), _T("Create Time"), LVCFMT_LEFT, 100);
 	}
 
-	if(m_chkAccessTime.GetCheck() == BST_CHECKED) {
+	//if(m_chkAccessTime.GetCheck() == BST_CHECKED)
+	{
 		m_lvwDetail.InsertColumn(m_lvwDetail.GetHeaderCtrl()->GetItemCount(), _T("Last Access Time"), LVCFMT_LEFT, 100);
 	}
 
-	if(m_chkWriteTime.GetCheck() == BST_CHECKED) {
+	//if(m_chkWriteTime.GetCheck() == BST_CHECKED) 
+	{
 		m_lvwDetail.InsertColumn(m_lvwDetail.GetHeaderCtrl()->GetItemCount(), _T("Last Write Time"), LVCFMT_LEFT, 100);
 	}
 
@@ -702,7 +711,7 @@ void CDuplicateFileFinderDlg::OnBnClickedChkName()
 	m_btnScan.EnableWindow(AtLeastOneChecked());
 	m_sttCheckboxMessage.ShowWindow(AtLeastOneChecked()?SW_HIDE:SW_SHOW);
 
-	ResetDetailList();
+	//ResetDetailList();
 }
 
 
@@ -711,7 +720,7 @@ void CDuplicateFileFinderDlg::OnBnClickedChkSize()
 	m_btnScan.EnableWindow(AtLeastOneChecked());
 	m_sttCheckboxMessage.ShowWindow(AtLeastOneChecked()?SW_HIDE:SW_SHOW);
 
-	ResetDetailList();
+	//ResetDetailList();
 }
 
 
@@ -720,7 +729,7 @@ void CDuplicateFileFinderDlg::OnBnClickedChkAttribute()
 	m_btnScan.EnableWindow(AtLeastOneChecked());
 	m_sttCheckboxMessage.ShowWindow(AtLeastOneChecked()?SW_HIDE:SW_SHOW);
 
-	ResetDetailList();
+	//ResetDetailList();
 }
 
 
@@ -729,7 +738,7 @@ void CDuplicateFileFinderDlg::OnBnClickedChkContent()
 	m_btnScan.EnableWindow(AtLeastOneChecked());
 	m_sttCheckboxMessage.ShowWindow(AtLeastOneChecked()?SW_HIDE:SW_SHOW);
 
-	ResetDetailList();
+	//ResetDetailList();
 }
 
 
@@ -738,7 +747,7 @@ void CDuplicateFileFinderDlg::OnBnClickedChkCtime()
 	m_btnScan.EnableWindow(AtLeastOneChecked());
 	m_sttCheckboxMessage.ShowWindow(AtLeastOneChecked()?SW_HIDE:SW_SHOW);
 
-	ResetDetailList();
+	//ResetDetailList();
 }
 
 
@@ -747,7 +756,7 @@ void CDuplicateFileFinderDlg::OnBnClickedChkAtime()
 	m_btnScan.EnableWindow(AtLeastOneChecked());
 	m_sttCheckboxMessage.ShowWindow(AtLeastOneChecked()?SW_HIDE:SW_SHOW);
 
-	ResetDetailList();
+	//ResetDetailList();
 }
 
 
@@ -756,7 +765,7 @@ void CDuplicateFileFinderDlg::OnBnClickedChkWtime()
 	m_btnScan.EnableWindow(AtLeastOneChecked());
 	m_sttCheckboxMessage.ShowWindow(AtLeastOneChecked()?SW_HIDE:SW_SHOW);
 
-	ResetDetailList();
+	//ResetDetailList();
 }
 
 void CDuplicateFileFinderDlg::DeleteDuplicateFilesTypes()
@@ -1200,31 +1209,33 @@ void CDuplicateFileFinderDlg::OnLbnSelchangeLstFiles()
 				int nCol = 1;
 				POSITION pos = pDup->DuplicateFiles->GetStartPosition();
 				while(pos){
-					nCol = 1;
+					nCol = 0;
 					pDup->DuplicateFiles->GetNextAssoc(pos, strKey, strCurPath);
 					_tsplitpath_s(strCurPath, szDrive, _MAX_PATH, szDir, _MAX_PATH, szName, _MAX_PATH, szExt, _MAX_PATH);
 					strPath.Format(_T("%s%s"), szDrive, szDir);
 					strName.Format(_T("%s%s"), szName,szExt);
 
-					nItem = m_lvwDetail.InsertItem(m_lvwDetail.GetItemCount(), strName);
-					m_lvwDetail.SetItemText(nItem, 1, strPath);
+					nItem = m_lvwDetail.InsertItem(m_lvwDetail.GetItemCount(), strPath);
 					nCol++;
+
+					m_lvwDetail.SetItemText(nItem, nCol, strName);
+					nCol++;					
 
 					if(pDup->DuplicateInfo->CheckMask(DUPLICATE_CRITERIA_TYPE)) {
 						m_lvwDetail.SetItemText(nItem, nCol, pDup->DuplicateInfo->getTypeName());
-						nCol++;
 					}
+					nCol++;
 
 					if(pDup->DuplicateInfo->CheckMask(DUPLICATE_CRITERIA_SIZE)) {
-						strKey.Format(_T("%I64d"), pDup->DuplicateInfo->getSize());
-						m_lvwDetail.SetItemText(nItem, nCol, strKey);
-						nCol++;
+						//strKey.Format(_T("%I64d"), pDup->DuplicateInfo->getSize());
+						m_lvwDetail.SetItemText(nItem, nCol, FormatSize(pDup->DuplicateInfo->getSize()));
 					}
+					nCol++;
 
 					if(pDup->DuplicateInfo->CheckMask(DUPLICATE_CRITERIA_CONTENT)) {
 						m_lvwDetail.SetItemText(nItem, nCol, pDup->DuplicateInfo->getChecksum());
-						nCol++;
 					}
+					nCol++;
 
 					if(pDup->DuplicateInfo->CheckMask(DUPLICATE_CRITERIA_ATTRIBUTES)) {
 						strKey = _T("");
@@ -1244,29 +1255,31 @@ void CDuplicateFileFinderDlg::OnLbnSelchangeLstFiles()
 							strKey += _T("+S");
 
 						m_lvwDetail.SetItemText(nItem, nCol, strKey);
-						nCol++;
+						
 					}
+					nCol++;
 
 					if(pDup->DuplicateInfo->CheckMask(DUPLICATE_CRITERIA_CREATION_TIME)) {
 						SYSTEMTIME* c = pDup->DuplicateInfo->getCreationTime();
 						strKey.Format(_T("%.4d/%.2d/%.2d-%.2d:%.2d:%.2d.%d"), c->wYear, c->wMonth, c->wDay, c->wHour, c->wMinute, c->wSecond, c->wMilliseconds);
 						m_lvwDetail.SetItemText(nItem, nCol, strKey);
-						nCol++;
 					}
+					nCol++;
 
 					if(pDup->DuplicateInfo->CheckMask(DUPLICATE_CRITERIA_ACCESS_TIME)) {
 						SYSTEMTIME* a = pDup->DuplicateInfo->getAccessTime();
 						strKey.Format(_T("%.4d/%.2d/%.2d-%.2d:%.2d:%.2d.%d"), a->wYear, a->wMonth, a->wDay, a->wHour, a->wMinute, a->wSecond, a->wMilliseconds);
 						m_lvwDetail.SetItemText(nItem, nCol, strKey);
-						nCol++;
 					}
+					nCol++;
 
 					if(pDup->DuplicateInfo->CheckMask(DUPLICATE_CRITERIA_WRITE_TIME)) {
 						SYSTEMTIME* w = pDup->DuplicateInfo->getWriteTime();
 						strKey.Format(_T("%.4d/%.2d/%.2d-%.2d:%.2d:%.2d.%d"), w->wYear, w->wMonth, w->wDay, w->wHour, w->wMinute, w->wSecond, w->wMilliseconds);
 						m_lvwDetail.SetItemText(nItem, nCol, strKey);
-						nCol++;
 					}
+					nCol++;
+
 				}
 				m_btnProcess.EnableWindow(m_lvwDetail.GetSelectedCount() > 0);
 			}
@@ -1443,4 +1456,45 @@ void CDuplicateFileFinderDlg::OnCbnSelchangeCboDuplicatedFileTypes()
 	strTemp.Format(_T("Process All (%ld) Duplicated Items"), m_lstFiles.GetCount());
 	m_btnProcessAll.SetWindowText(strTemp);
 	m_btnProcessAll.EnableWindow(m_lstFiles.GetCount() > 0);
+}
+
+
+CString CDuplicateFileFinderDlg::FormatSize(__int64 iSize)
+{
+	CString	strSize;
+	double dblSize =static_cast<double>(iSize);
+	const __int64 iOneKB = static_cast<__int64>( pow(static_cast<double>(1024), static_cast<double>(eKiloByte)) );
+	const __int64 iOneMB = static_cast<__int64>( pow(static_cast<double>(1024), static_cast<double>(eMegaByte)) );
+	const __int64 iOneGB = static_cast<__int64>( pow(static_cast<double>(1024), static_cast<double>(eGigaByte)) );
+	const __int64 iOneTB = static_cast<__int64>( pow(static_cast<double>(1024), static_cast<double>(eTeraByte)) );
+	const __int64 iOnePB = static_cast<__int64>( pow(static_cast<double>(1024), static_cast<double>(ePetaByte)) );
+
+	if(iSize >= iOnePB) {
+		strSize.Format(_T("%.1f PB"), dblSize/static_cast<double>(iOnePB));
+	}
+	else if(iSize >= iOneTB) {
+		strSize.Format(_T("%.1f TB"), dblSize/static_cast<double>(iOneTB));
+	}
+	else if(iSize >= iOneGB) {
+		strSize.Format(_T("%.1f GB"), dblSize/static_cast<double>(iOneGB));
+	}
+	else if(iSize >= iOneMB) {
+		strSize.Format(_T("%.1f MB"), dblSize/static_cast<double>(iOneMB));
+	}
+	else if(iSize >= iOneKB) {
+		strSize.Format(_T("%.1f KB"), dblSize/static_cast<double>(iOneKB));
+	}
+	else {
+		strSize.Format(_T("%I64d Byte(s)"), iSize);
+	}
+
+	return strSize;
+}
+
+void CDuplicateFileFinderDlg::OnBnClickedChkType()
+{
+	m_btnScan.EnableWindow(AtLeastOneChecked());
+	m_sttCheckboxMessage.ShowWindow(AtLeastOneChecked()?SW_HIDE:SW_SHOW);
+
+	ResetDetailList();
 }

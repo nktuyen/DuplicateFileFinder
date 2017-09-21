@@ -314,11 +314,11 @@ UINT CScanThread::IsDuplicateFile(const CString& strPath, CMapStringToString* ar
 				continue;
 			}
 
-			if(m_nMessageID & DUPLICATE_CRITERIA_TYPE) {
+			if(m_nDuplicateMask & DUPLICATE_CRITERIA_TYPE) {
 				if(_tcsicmp(pSourceInfo->getTypeName(), pDestInfo->getTypeName()) != 0)
 					continue;
 				else
-					nMask |= DUPLICATE_CRITERIA_NAME;
+					nMask |= DUPLICATE_CRITERIA_TYPE;
 			}
 
 			if(m_nDuplicateMask & DUPLICATE_CRITERIA_NAME) {

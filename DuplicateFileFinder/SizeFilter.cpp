@@ -33,7 +33,7 @@ BOOL CSizeFilter::OnFilter(const CString& strPath)
 	else
 		return FALSE;
 
-	__int64 nFilterSize = m_nSize*static_cast<__int64>( pow((int)1024, static_cast<double>(m_eUnit)) );
+	__int64 nFilterSize = m_nSize*static_cast<__int64>( pow(static_cast<double>(1024), static_cast<double>(m_eUnit)) );
 	
 
 	switch (m_eFilterCriteria)

@@ -99,6 +99,7 @@ public:
 	CButton m_chkExcludeSystem;
 	afx_msg void OnBnClickedChkExcludePattern();
 	afx_msg void OnBnClickedChkExcludeSize();
+	CString FormatSize(__int64 iSize);
 	CStatic m_sttPatternsTips;
 	CButton m_chkExcludeTemp;
 	CButton m_chkExcludeArchive;
@@ -118,4 +119,5 @@ public:
 	afx_msg void OnCbnSelchangeCboDuplicatedFileTypes();
 	CStatic m_sttProcessAllTips;
 	CButton m_chkTypeCriteria;
+	afx_msg void OnBnClickedChkType();
 };
