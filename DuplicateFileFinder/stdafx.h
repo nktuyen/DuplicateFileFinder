@@ -19,9 +19,16 @@
 #include <afxwin.h>         // MFC core and standard components
 #include <afxext.h>         // MFC extensions
 
+#define TM_INIT	(WM_USER+1)
+#define TM_EXIT	(WM_USER+2)
 
-
-
+#define DUPLICATE_CRITERIA_NAME             0x00000001  
+#define DUPLICATE_CRITERIA_SIZE             0x00000002  
+#define DUPLICATE_CRITERIA_ATTRIBUTES       0x00000004  
+#define DUPLICATE_CRITERIA_CONTENT          0x00000010  
+#define DUPLICATE_CRITERIA_CREATION_TIME    0x00000020  
+#define DUPLICATE_CRITERIA_ACCESS_TIME      0x00000040  
+#define DUPLICATE_CRITERIA_WRITE_TIME       0x00000080  
 
 #ifndef _AFX_NO_OLE_SUPPORT
 #include <afxdtctl.h>           // MFC support for Internet Explorer 4 Common Controls
@@ -31,13 +38,6 @@
 #endif // _AFX_NO_AFXCMN_SUPPORT
 
 #include <afxcontrolbars.h>     // MFC support for ribbons and control bars
-
-
-
-
-
-
-
 
 
 #ifdef _UNICODE

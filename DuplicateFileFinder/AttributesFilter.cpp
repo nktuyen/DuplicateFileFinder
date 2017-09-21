@@ -21,7 +21,7 @@ BOOL CAttributesFilter::OnFilter(const CString& strPath)
 	DWORD dwSrcAttrs = GetFileAttributes(strPath);
 	DWORD dwDstAttrs = (dwSrcAttrs | m_nAttributes);
 	
-	if(dwDstAttrs & dwSrcAttrs)
+	if(dwDstAttrs == dwSrcAttrs)
 		return TRUE;
 
 	return FALSE;

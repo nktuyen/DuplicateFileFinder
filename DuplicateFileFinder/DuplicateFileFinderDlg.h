@@ -9,6 +9,7 @@
 #include "WorkerDialog.h"
 
 class CScanThread;
+struct _SFilesDuplicateInfo;
 
 // CDuplicateFileFinderDlg dialog
 class CDuplicateFileFinderDlg : public CDialogEx
@@ -35,12 +36,14 @@ protected:
 	afx_msg void OnDestroy();
 	afx_msg void OnCancel();
 	afx_msg void OnSize(UINT nType, int cx, int cy);
+	BOOL PreTranslateMessage(MSG* pMsg);
 	void InitUI();
 	BOOL AtLeastOneChecked();
 	UINT EnumCheckedPaths();
 	void EnumCheckedChildNode(HTREEITEM hNode);
 	BOOL ReadyToScan();
 	void ResetDetailList();
+	void DeleteDuplicateInfo();
 	afx_msg void OnDropFiles(HDROP hDropInfo);
 	DECLARE_MESSAGE_MAP()
 public:
@@ -64,8 +67,6 @@ public:
 	CButton m_chkCreateTime;
 	CButton m_chkAccessTime;
 	CButton m_chkWriteTime;
-	afx_msg void OnHdnItemclickLvwDetail(NMHDR *pNMHDR, LRESULT *pResult);
-	afx_msg void OnTvnSelchangedFolderBrowser(NMHDR *pNMHDR, LRESULT *pResult);
 	afx_msg void OnBnClickedChkName();
 	afx_msg void OnBnClickedChkSize();
 	afx_msg void OnBnClickedChkAttribute();
@@ -79,6 +80,7 @@ public:
 	static UINT m_sThreadMessage;
 	CButton m_btnBrowse;
 	afx_msg void OnBnClickedBtnBrowse();
+	int AddFolder(const CString& strPath);
 	CStatic m_sttExclude;
 	CButton m_btnRemove;
 	CButton m_btnClear;
@@ -103,4 +105,12 @@ public:
 	CButton m_chkScanRecursive;
 	CComboBox m_cboDuplicatedFileTypes;
 	CMapStringToString m_arrFileTypes;
+	CStatic m_sttFolderCount;
+	CMapStringToPtr mapDuplicateFiles;
+	afx_msg void OnLbnSelchangeLstFiles();
+	afx_msg void OnBnClickedBtnProcessAll();
+	afx_msg void OnBnClickedBtnProcess();
+	afx_msg void OnNMDblclkLvwDetail(NMHDR *pNMHDR, LRESULT *pResult);
+	afx_msg void OnNMClickLvwDetail(NMHDR *pNMHDR, LRESULT *pResult);
+	afx_msg void OnLvnItemchangedLvwDetail(NMHDR *pNMHDR, LRESULT *pResult);
 };

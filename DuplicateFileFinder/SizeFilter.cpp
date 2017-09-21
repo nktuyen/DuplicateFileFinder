@@ -22,7 +22,7 @@ BOOL CSizeFilter::OnFilter(const CString& strPath)
 	sa.bInheritHandle = TRUE;
 	sa.lpSecurityDescriptor = nullptr;
 	sa.nLength = sizeof(sa);
-	HANDLE hFile = CreateFile(strPath, GENERIC_ALL, FILE_SHARE_READ, &sa, OPEN_EXISTING, 0, nullptr);
+	HANDLE hFile = CreateFile(strPath, GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING, 0, nullptr);
 	if(hFile != INVALID_HANDLE_VALUE) {
 		LARGE_INTEGER liSize = {0};
 		if(GetFileSizeEx(hFile, &liSize)) {

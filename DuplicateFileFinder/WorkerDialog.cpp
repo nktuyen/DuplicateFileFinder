@@ -36,6 +36,8 @@ void CWorkerDialog::DoDataExchange(CDataExchange* pDX)
 BEGIN_MESSAGE_MAP(CWorkerDialog, CDialog)
 	ON_WM_DESTROY()
 	ON_WM_TIMER()
+	ON_WM_ACTIVATE()
+	ON_WM_NCACTIVATE()
 END_MESSAGE_MAP()
 
 
@@ -140,4 +142,25 @@ void CWorkerDialog::OnTimer(UINT_PTR nIDEvent)
 			m_prgbProgress.SetPos(nVal);
 		}
 	}
+}
+
+void CWorkerDialog::OnActivate(UINT nState, CWnd* pWndOther, BOOL bMinimized)
+{
+	CDialog::OnActivate(nState, pWndOther, bMinimized);
+
+	if( (!bMinimized) && (nState == WA_INACTIVE) ) {
+		SendMessage(WM_NCACTIVATE, 1);
+		return;
+	}
+}
+
+BOOL CWorkerDialog::OnNcActivate(BOOL bActive)
+{
+	
+	if(!bActive) {
+		SendMessage(WM_NCACTIVATE, 1);
+		return TRUE;
+	}
+
+	return CDialog::OnNcActivate(bActive);
 }

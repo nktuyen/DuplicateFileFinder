@@ -15,7 +15,7 @@ CPatternFilter::~CPatternFilter(void)
 
 BOOL CPatternFilter::OnFilter(const CString& strPath)
 {
-	if(m_strPatterns.IsEmpty() || m_strPatterns.CompareNoCase(_T("*"))) {
+	if(m_strPatterns.IsEmpty() || m_strPatterns.CompareNoCase(_T("*")) == 0) {
 		return TRUE;
 	}
 
