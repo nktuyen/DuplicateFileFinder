@@ -93,6 +93,7 @@ BEGIN_MESSAGE_MAP(CDuplicateFileFinderDlg, CDialogEx)
 	ON_WM_CONTEXTMENU()
 	ON_WM_DROPFILES()
 	ON_WM_INITMENUPOPUP()
+	ON_WM_SYSCOMMAND()
 	ON_BN_CLICKED(IDC_CHK_NAME, &CDuplicateFileFinderDlg::OnBnClickedChkName)
 	ON_BN_CLICKED(IDC_CHK_SIZE, &CDuplicateFileFinderDlg::OnBnClickedChkSize)
 	ON_BN_CLICKED(IDC_CHK_ATTRIBUTE, &CDuplicateFileFinderDlg::OnBnClickedChkAttribute)
@@ -1178,8 +1179,15 @@ LRESULT CDuplicateFileFinderDlg::OnScanThreadMessage(WPARAM wparam, LPARAM lPara
 	}
 	else {
 		UINT uMsg = (UINT)wparam;
+		CMenu* pSysMenu = GetSystemMenu(FALSE);
 		if(TM_EXIT == uMsg) {
+			pSysMenu->EnableMenuItem(SC_CLOSE, MF_ENABLED | MF_BYCOMMAND);
 			m_btnProcessAll.EnableWindow(m_lstFiles.GetCount() > 0);
+		}
+		else if(TM_INIT == uMsg) {
+			if(pSysMenu) {
+				pSysMenu->EnableMenuItem(SC_CLOSE, MF_DISABLED| MF_GRAYED  | MF_BYCOMMAND);
+			}
 		}
 	}
 
@@ -1188,7 +1196,7 @@ LRESULT CDuplicateFileFinderDlg::OnScanThreadMessage(WPARAM wparam, LPARAM lPara
 
 void CDuplicateFileFinderDlg::OnCancel()
 {
-	if(m_pWorkerDlg && m_pWorkerDlg->GetSafeHwnd() &&  m_pWorkerDlg->IsWindowVisible())
+	if(m_pWorkerDlg && m_pWorkerDlg->GetSafeHwnd() )
 		return;
 
 	CDialogEx::OnCancel();
@@ -1812,4 +1820,14 @@ void CDuplicateFileFinderDlg::OnContextMenu(CWnd* pWnd, CPoint pos)
 			m_Popup.DestroyMenu();
 		}
 	}
+}
+
+void CDuplicateFileFinderDlg::OnSysCommand(UINT nID, LPARAM lParam)
+{
+	if( (m_pWorkerDlg) && (m_pWorkerDlg->GetSafeHwnd()) ) {
+		if( nID == SC_CLOSE)
+			return;
+	}
+
+	CDialogEx::OnSysCommand(nID, lParam);
 }

@@ -68,6 +68,7 @@ int CScanThread::ExitInstance()
 		if(m_pProgressDlg->GetSafeHwnd())
 			m_pProgressDlg->SendMessage(WM_CLOSE, 0, 0);
 	}
+
 	RemoveAllScannedFiles();
 	m_arrPaths.RemoveAll();
 	return CWinThread::ExitInstance();
@@ -116,6 +117,8 @@ BOOL CScanThread::Initialize(const CStringArray& strPath, BOOL bRecursive)
 		m_pProgressDlg->SetProgressValue(0);
 	}
 
+	if(m_pOwnerWnd && m_pOwnerWnd->GetSafeHwnd())
+		m_pOwnerWnd->SendMessage(m_nMessageID, (WPARAM)TM_INIT);
 	
 	m_bRunning = TRUE;
 	locker.Unlock();
@@ -130,7 +133,7 @@ int CScanThread::Run()
 	EnableAllControls(FALSE);
 
 	bool bLocked = false;
-	m_pProgressDlg->SetJobName(_T("Scan Files..."));
+	m_pProgressDlg->SetJobName(_T("Scanning Files..."));
 	m_pProgressDlg->SetMessageTitle(_T("Current File:"));
 	CString	strCurrentPath;
 	CString	strMessage;

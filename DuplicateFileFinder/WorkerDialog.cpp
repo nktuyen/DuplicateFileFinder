@@ -169,6 +169,8 @@ void CWorkerDialog::OnBnClickedBtnClose()
 		return;
 	}
 
+	DestroyWindow();
+
 	if(m_pWorkerThread) {
 		m_pWorkerThread->EnableLock();
 		m_pWorkerThread->Finalize();

@@ -117,6 +117,7 @@ public:
 	afx_msg void OnNMDblclkLvwDetail(NMHDR *pNMHDR, LRESULT *pResult);
 	afx_msg void OnNMClickLvwDetail(NMHDR *pNMHDR, LRESULT *pResult);
 	afx_msg void OnLvnItemchangedLvwDetail(NMHDR *pNMHDR, LRESULT *pResult);
+	afx_msg void OnSysCommand(UINT nID, LPARAM lParam);
 	CStatic m_sttKeepTips;
 	afx_msg void OnCbnSelchangeCboDuplicatedFileTypes();
 	CStatic m_sttProcessAllTips;
